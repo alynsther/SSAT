@@ -64,7 +64,8 @@ void tokenize(string str, vector<string> &token_v);
  *****************************************************************************/
 int main(int argc, char* argv[]) {
     //open the file for reading
-    string input  = "smallTEST.ssat"; //same as small1
+    // string input  = "smallTEST.ssat"; //same as small1
+    string input = argv[1];
     readFile(input);
     
 	return 0;
@@ -182,7 +183,7 @@ void readFile(string input) {
     }
 
     cout << "clauses size " << clauses.size() << endl;
-    for(int a = 0; a < clauses.size(); a++){   
+    for(int a = 0; a < clauses.size(); a++){  
         for(int c = 0; c < (clauses.at(a)).size(); c++){
             cout << (clauses.at(a)).at(c) << " ";
         }
