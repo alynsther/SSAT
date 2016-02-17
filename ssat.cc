@@ -18,6 +18,9 @@
     g++ -Wall -o ssat ssat.cc
     ./ssat [file name]
 
+    Running on dover: g++ -std=c++11 -Wall -o ssat ssat.cc
+    ./ssat [file name]
+
  Data Structures:
 
 ******************************************************************************/
@@ -57,7 +60,7 @@ double solutionTime;
 /* functions */
 void readFile(string input);
 void tokenize(string str, vector<string> &token_v);
-
+void isPureChoice();
 /*****************************************************************************
  Function:  main
  Inputs:    argv
@@ -151,7 +154,7 @@ void readFile(string input) {
         vSTemp.clear();
         tokenize(sTemp, vSTemp);
 
-        for(int b = 0; b < vSTemp.size(); b++){
+        for(unsigned int b = 0; b < vSTemp.size(); b++){
             if(b%2 == 1) {
                 variables.push_back(stod(vSTemp.at(b)));
             }
@@ -160,8 +163,8 @@ void readFile(string input) {
         i--;    
     }
 
-    cout << "variables size " <<variables.size() << endl;
-    for(int b = 0; b < variables.size(); b++){
+    cout << "variables size " << variables.size() << endl;
+    for(unsigned int b = 0; b < variables.size(); b++){
         cout << variables.at(b) << " ";
     }
     cout << "\n";
@@ -174,7 +177,7 @@ void readFile(string input) {
         getline(inFile, sTemp);
         tokenize(sTemp, vSTemp);
         vSTemp.pop_back();
-        for(int j = 0; j < vSTemp.size(); j++){
+        for(unsigned int j = 0; j < vSTemp.size(); j++){
             int num = stoi(vSTemp.at(j).c_str());
             vITemp.push_back(num);
         }
@@ -185,8 +188,8 @@ void readFile(string input) {
     }
 
     cout << "clauses size " << clauses.size() << endl;
-    for(int a = 0; a < clauses.size(); a++){  
-        for(int c = 0; c < (clauses.at(a)).size(); c++){
+    for(unsigned int a = 0; a < clauses.size(); a++){  
+        for(unsigned int c = 0; c < (clauses.at(a)).size(); c++){
             cout << (clauses.at(a)).at(c) << " ";
         }
         cout << "\n";
