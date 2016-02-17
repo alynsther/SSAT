@@ -33,12 +33,21 @@
 #include <fstream> 
 #include <sstream>
 #include <cstdlib>
+#include <cmath> 
 #include <algorithm>
+#include <map>
 
+using namespace std;
+
+/***************************************************************************/
+/* structs */
+typedef struct varInfo{
+    double value;               // the value of the variables
+    vector <int> clauseMembers;  // the indexes of the clauses the var is in        
+} varInfo;
 
 /***************************************************************************/
 /* globals variables */
-using namespace std;
 
 //probably will not use these vars...
 int maximumClauseLength;
@@ -49,8 +58,8 @@ int seed;
 int numVars;
 int numClauses;
 
-vector <double> variables;
-vector < vector <int> > clauses;
+map <int, varInfo> variables;
+map <int, vector<int> > clauses;
 
 vector <vector <int> > solution;
 double successProbability;
@@ -61,6 +70,7 @@ double solutionTime;
 void readFile(string input);
 void tokenize(string str, vector<string> &token_v);
 void isPureChoice();
+
 /*****************************************************************************
  Function:  main
  Inputs:    argv
@@ -87,8 +97,8 @@ int main(int argc, char* argv[]) {
 void readFile(string input) {
     string sTemp;
     ifstream inFile;
-    vector <string> vSTemp;
-    vector <int> vITemp;
+    vector<string> vSTemp;
+    vector<int> vITemp;
     int i;
 
     inFile.open(input.c_str());
@@ -149,30 +159,34 @@ void readFile(string input) {
     cout << "vars " << sTemp << endl;
     //variables
     i = numVars;
-    while(i >0 ){
+    unsigned int count = 1;
+    while(i > 0 ){
         getline(inFile, sTemp);
         vSTemp.clear();
         tokenize(sTemp, vSTemp);
 
-        for(unsigned int b = 0; b < vSTemp.size(); b++){
+        varInfo var;
+        for(unsigned int b = 0; b <= vSTemp.size(); b++){
             if(b%2 == 1) {
-                variables.push_back(stod(vSTemp.at(b)));
+                var.value = stod(vSTemp.at(b));
+                variables.insert(pair<int,varInfo>(count, var));
             }
         }
 
+        count++;
         i--;    
-    }
-
-    cout << "variables size " << variables.size() << endl;
-    for(unsigned int b = 0; b < variables.size(); b++){
-        cout << variables.at(b) << " ";
     }
     cout << "\n";
 
+    cout << "variables size " << variables.size() << endl;
+    // for(int leep = 1; leep < 4; leep++){
+    //     cout << (variables.at(leep)).value << " ";
+    // }
+    // cout << "\n";
+
     getline(inFile, sTemp);
     getline(inFile, sTemp);
-    i = numClauses;
-    while(i >0 ){
+    for(i = 0; i < numClauses; i++){
         vSTemp.clear();
         getline(inFile, sTemp);
         tokenize(sTemp, vSTemp);
@@ -180,20 +194,32 @@ void readFile(string input) {
         for(unsigned int j = 0; j < vSTemp.size(); j++){
             int num = stoi(vSTemp.at(j).c_str());
             vITemp.push_back(num);
+            ((variables.at(abs(num))).clauseMembers).push_back(i);
         }
-        clauses.push_back(vITemp);
+        clauses.insert(pair<int,vector<int> >(i,vITemp));
         vITemp.clear();
-
-        i--;
     }
 
     cout << "clauses size " << clauses.size() << endl;
-    for(unsigned int a = 0; a < clauses.size(); a++){  
-        for(unsigned int c = 0; c < (clauses.at(a)).size(); c++){
-            cout << (clauses.at(a)).at(c) << " ";
-        }
-        cout << "\n";
-    }
+    // map<int, vector <int> >::iterator it = clauses.begin();       
+    // for(it = clauses.begin(); it!=clauses.end(); ++it){
+    //         cout << it->first << ":";
+    //     vector<int>::iterator iter;
+    //     for(iter = (it->second).begin(); iter!=(it->second).end();++iter){
+    //         cout << " " << (*iter);
+    //     }
+    //     cout << endl;
+    // }
+
+    // for(int leep = 1; leep < 4; leep++){
+    //     for (int sneep = 0; sneep < ((variables.at(leep)).clauseMembers).size(); sneep++){
+    //         cout << ((variables.at(leep)).clauseMembers).at(sneep) << " ";
+    //     }
+    //     cout << "\n";
+    // }
+    // cout << "\n";
+
+
 
     inFile.close();
 }
@@ -217,6 +243,7 @@ void tokenize(string str, vector<string> &token_v){
         start = str.find_first_not_of(' ', end);
     }
 }
+
  
 /***************************************************************************
  Function:
