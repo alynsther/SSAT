@@ -40,7 +40,7 @@
 using namespace std;
 
 /***************************************************************************/
-/* CONSTANTS */
+/* constants */
 static const double CHOICE_VALUE = -1.0;
 static const int POSITIVE = 1;
 static const int NEGATIVE = -1;
@@ -51,19 +51,19 @@ static const int INVALID = 0;
 /***************************************************************************/
 /* structs */
 typedef struct varInfo{
-    double value;               // the value of the variables
-    vector <int> clauseMembers;  // the indexes of the clauses the var is in        
+    double value;                   // the value of the variables
+    map<int, int> clauseMembers;    // key: index of the clauses the var is in
+                                    // value: POS/NEG in its respective clauses        
 } varInfo;
 
 //Son's comment on varInfo: I think we should turn clauseMembers into a map
 //of <int, int> where the first one is the index of the clause and the value
 //indicates what its assignment is in that corresponding clause. This modification
 //would help a lot of with updating clauses when we assign a value to a variable
+//ADELA: done. Lemme know if u run into issues.
 
 /***************************************************************************/
 /* globals variables */
-
-//probably will not use these vars...
 int maximumClauseLength;
 int minimumClauseLength;
 double averageClauseLength;
@@ -75,11 +75,6 @@ int numClauses;
 map <int, varInfo> variables;
 map <int, vector<int> > clauses;
 map <int, int> assignment;
-
-vector <vector <int> > solution;
-
-double successProbability;
-double solutionTime;
 
 /***************************************************************************/
 /* functions */
@@ -189,7 +184,7 @@ void readFile(string input) {
         for(unsigned int b = 0; b <= vSTemp.size(); b++){
             if(b%2 == 1) {
                 var.value = stod(vSTemp.at(b));
-                variables.insert(pair<int,varInfo>(count, var));
+                variables.insert(pair<int, varInfo>(count, var));
             }
         }
 
@@ -214,17 +209,24 @@ void readFile(string input) {
         for(unsigned int j = 0; j < vSTemp.size(); j++){
             int num = stoi(vSTemp.at(j).c_str());
             vITemp.push_back(num);
-            ((variables.at(abs(num))).clauseMembers).push_back(i);
+            if(num > 0){
+                ((variables.at(abs(num))).clauseMembers).insert(pair<int, int>(i, POSITIVE));
+            }
+            else{
+                ((variables.at(abs(num))).clauseMembers).insert(pair<int, int>(i, NEGATIVE));
+            }
+
         }
-        clauses.insert(pair<int,vector<int> >(i,vITemp));
+        clauses.insert(pair<int, vector<int> >(i,vITemp));
         vITemp.clear();
     }
 
     cout << "clauses size " << clauses.size() << endl;
     // map<int, vector <int> >::iterator it = clauses.begin();       
     // for(it = clauses.begin(); it!=clauses.end(); ++it){
-    //         cout << it->first << ":";
+    //     cout << it->first << ":";
     //     vector<int>::iterator iter;
+
     //     for(iter = (it->second).begin(); iter!=(it->second).end();++iter){
     //         cout << " " << (*iter);
     //     }
@@ -232,8 +234,9 @@ void readFile(string input) {
     // }
 
     // for(int leep = 1; leep < 4; leep++){
-    //     for (int sneep = 0; sneep < ((variables.at(leep)).clauseMembers).size(); sneep++){
-    //         cout << ((variables.at(leep)).clauseMembers).at(sneep) << " ";
+    //     map<int, int>::iterator it1 = ((variables.at(leep)).clauseMembers).begin();       
+    //     for(it1 = ((variables.at(leep)).clauseMembers).begin(); it1!=((variables.at(leep)).clauseMembers).end(); it1++){
+    //         cout << leep << " " << it1->first << " =>"<< it1->second << endl;
     //     }
     //     cout << "\n";
     // }
@@ -266,7 +269,7 @@ double SOLVESSAT(clauses, chace-var-probabilities){
     for (map<int, varInfo>::iterator it = variables.begin(); it != variables.end(); it++){
         v = it->first;
         result = isPureChoice(it->first);
-        if (result.first == false){
+        if(result.first == false) {
             continue;
         }
         else {
@@ -275,7 +278,6 @@ double SOLVESSAT(clauses, chace-var-probabilities){
             updateSATclauses(v, value);
         }
     }
-
 }
 
 /***************************************************************************
@@ -288,7 +290,7 @@ double SOLVESSAT(clauses, chace-var-probabilities){
 void tokenize(string str, vector<string> &token_v){
     size_t start = str.find_first_not_of(' '), end=start;
 
-    while (start != string::npos){
+    while(start != string::npos) {
         // Find next occurence of delimiter
         end = str.find(' ', start);
         // Push back the token found into vector
@@ -317,10 +319,10 @@ pair<bool, int> isPureChoice(int variable) {
     int currentStatus = POSITIVE;
     bool switchSign = false;
 
-    for (unsigned int i = 0; i < (*clauseVect).size(); i++){
+    for(unsigned int i = 0; i < (*clauseVect).size(); i++) {
         clauseEntry = (*clauseVect)[i];
-        if (currentStatus != variableSignInClause(clauseEntry, variable)){
-            if !(switchSign) {
+        if(currentStatus != variableSignInClause(clauseEntry, variable)) {
+            if!(switchSign) {
                 currentStatus = NEGATIVE;
                 switchSign = true;
             }
@@ -340,12 +342,11 @@ pair<bool, int> isPureChoice(int variable) {
  Description:   indicates the sign of a variable within a given clause
  ***************************************************************************/
 int variableSignInClause(int clauseEntry, int variable) {
-
     vector<int>* clause = clauses[clauseEntry];
 
     bool foundSign = false;
 
-    for (unsigned int i = 0; i < (*clause).size(); i++){
+    for(unsigned int i = 0; i < (*clause).size(); i++) {
         if (abs((*clause)[i]) == variable) {
             return (*clause[i] / variable);
         } 
@@ -354,6 +355,7 @@ int variableSignInClause(int clauseEntry, int variable) {
     return INVALID;
 }
 
+
 /***************************************************************************
  Function:  updateSATclauses
  Inputs:    int
@@ -361,22 +363,21 @@ int variableSignInClause(int clauseEntry, int variable) {
  Description:   indicates the sign of a variable within a given clause
  ***************************************************************************/
 void updateSATclauses(int variable, int value) {
-
     varInfo info = variables[variable];
 
     vector<int>& clauseVect = &(info.clauseMembers);
 
     int clauseEntry = 0;
 
-    for (unsigned int i = 0; i < (*clauseVect).size(); i++){
+    for(unsigned int i = 0; i < (*clauseVect).size(); i++) {
         clauseEntry = (*clauseVect)[i];
 
         //clause is satisfied
-        if (variableSignInClause(clauseEntry, variable) == value){
+        if(variableSignInClause(clauseEntry, variable) == value) {
 
             vector<int>* clause = clauses[clauseEntry];
 
-            for (unsigned int i = 0; i < (*clause).size(); i++){
+            for(unsigned int i = 0; i < (*clause).size(); i++) {
                 varInfo currInfo = variables[i];
 
                 //this should be much easier with a map! Otherwise I will have to
@@ -386,7 +387,6 @@ void updateSATclauses(int variable, int value) {
             }
         }
     }
-
 }
 
 /***************************************************************************
@@ -399,5 +399,6 @@ void assign(int variable, int value) {
     assignment[variable] = value;
     //variables.erase(variable);
 }
+
 
 /****** END OF FILE **********************************************************/
