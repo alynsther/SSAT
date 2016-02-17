@@ -14,7 +14,9 @@
  Running instructions:
  Run this program with two arugments on the command line 
     the input file
-    the splitting heuristic
+    
+    g++ -Wall -o ssat ssat.cc
+    ./ssat [file name]
 
  Data Structures:
 
