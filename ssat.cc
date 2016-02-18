@@ -311,9 +311,9 @@ double SOLVESSAT(){
                 return probSAT;
             }
             if(!isPositive){
-                //return probSAT * prob[v=FALSE];
+                return probSAT * (1 - variables[v].quantifier);
             }
-            //return probSAT * prob[v=TRUE];
+            return probSAT * variables[v].quantifier;
         }
     }
     
