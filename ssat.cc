@@ -36,6 +36,7 @@
 #include <cmath> 
 #include <algorithm>
 #include <map>
+#include <set>
 
 using namespace std;
 
@@ -56,12 +57,6 @@ typedef struct varInfo{
                                     // value: POS/NEG in its respective clauses        
 } varInfo;
 
-//Son's comment on varInfo: I think we should turn clauseMembers into a map
-//of <int, int> where the first one is the index of the clause and the value
-//indicates what its assignment is in that corresponding clause. This modification
-//would help a lot of with updating clauses when we assign a value to a variable
-//ADELA: done. Lemme know if u run into issues.
-
 /***************************************************************************/
 /* globals variables */
 int maximumClauseLength;
@@ -73,18 +68,26 @@ int numVars;
 int numClauses;
 
 map <int, varInfo> variables;
-map <int, vector<int> > clauses;
+
+//Adela
+//map <int, vector<int> > clauses;
+
+//Son
+map <int, set<int> > clauses;
 map <int, int> assignment;
+
+//what happened to the solution tree variable?
 
 /***************************************************************************/
 /* functions */
-double SOLVESSAT(clauses, chace-var-probabilities);
+double SOLVESSAT();
 void readFile(string input);
 void tokenize(string str, vector<string> &token_v);
 pair<bool, int> isPureChoice(int variable);
 int variableSignInClause(int clauseEntry);
-void updateSATclauses(int variable, int value);
+void updateClausesAndVariables(int variable, int value);
 void assign(int variable, int value);
+void undoChanges();
 
 /*****************************************************************************
  Function:  main
@@ -113,7 +116,13 @@ void readFile(string input) {
     string sTemp;
     ifstream inFile;
     vector<string> vSTemp;
-    vector<int> vITemp;
+    
+    //Adela's version
+    //vector<int> vITemp;
+
+    //Son's version: 
+    set <int> vITemp;
+
     int i;
 
     inFile.open(input.c_str());
@@ -208,7 +217,9 @@ void readFile(string input) {
         vSTemp.pop_back();
         for(unsigned int j = 0; j < vSTemp.size(); j++){
             int num = stoi(vSTemp.at(j).c_str());
-            vITemp.push_back(num);
+            //Adela's version: vITemp.push_back(num);
+            //Son's version:
+            vITemp.insert(num); 
             if(num > 0){
                 ((variables.at(abs(num))).clauseMembers).insert(pair<int, int>(i, POSITIVE));
             }
@@ -217,6 +228,11 @@ void readFile(string input) {
             }
 
         }
+
+        //Adela
+        //clauses.insert(pair<int, vector<int> >(i,vITemp));
+
+        //Son
         clauses.insert(pair<int, vector<int> >(i,vITemp));
         vITemp.clear();
     }
@@ -254,12 +270,10 @@ void readFile(string input) {
  Description:
             THE MAIN ALGORITHM IMPLEMENTATION
  ***************************************************************************/
-double SOLVESSAT(clauses, chace-var-probabilities){
+double SOLVESSAT(){
 
 
     //check for pure CHOICE variable
-
-    map<int, varInfo>::iterator it = variables.begin();
 
     pair<bool, int> result;
 
@@ -273,9 +287,15 @@ double SOLVESSAT(clauses, chace-var-probabilities){
             continue;
         }
         else {
+            varInfo savedInfo;
+            savedInfo.value = variables[v].value;
+            savedInfo.
             value = result.second;
             assign(v, value);
-            updateSATclauses(v, value);
+            updateClausesAndVariables(v, value);
+            double probSSAT = SOLVESSAT();
+            undoChanges();
+            return probSSAT;
         }
     }
 }
@@ -342,49 +362,36 @@ pair<bool, int> isPureChoice(int variable) {
  Description:   indicates the sign of a variable within a given clause
  ***************************************************************************/
 int variableSignInClause(int clauseEntry, int variable) {
-    vector<int>* clause = clauses[clauseEntry];
-
-    bool foundSign = false;
-
-    for(unsigned int i = 0; i < (*clause).size(); i++) {
-        if (abs((*clause)[i]) == variable) {
-            return (*clause[i] / variable);
-        } 
-    }
-
-    return INVALID;
+    return variables[variable].clauseMembers[clauseEntry];
 }
 
-
 /***************************************************************************
- Function:  updateSATclauses
+ Function:  updateClausesAndVariables
  Inputs:    int
  Returns:   int (positive or negative)
- Description:   indicates the sign of a variable within a given clause
+ Description:   remove all satisfactory clauses after a given assignment
  ***************************************************************************/
-void updateSATclauses(int variable, int value) {
+void updateClausesAndVariables(int variable, int value, 
+                                vector<int>* savedSATClause, 
+                                vector<int>* savedFalseLiteralClause) {
     varInfo info = variables[variable];
 
-    vector<int>& clauseVect = &(info.clauseMembers);
+    set<int>* clauseSet = &(info.clauseMembers);
 
-    int clauseEntry = 0;
+    for(set<int>::iterator it = (*clauseSet).begin(); it != (*clauseSet).end(); ) {
+        
+        int clauseEntry = it->first;
+        int clauseEntryValue = it->second;
 
-    for(unsigned int i = 0; i < (*clauseVect).size(); i++) {
-        clauseEntry = (*clauseVect)[i];
+        //remove clauses that have the true-value variables
+        if (clauseEntryValue == value){
+            (*saveSATClause).push_back(clauseEntry);
+            clauses.erase(clauseEntry);
+        }
 
-        //clause is satisfied
-        if(variableSignInClause(clauseEntry, variable) == value) {
-
-            vector<int>* clause = clauses[clauseEntry];
-
-            for(unsigned int i = 0; i < (*clause).size(); i++) {
-                varInfo currInfo = variables[i];
-
-                //this should be much easier with a map! Otherwise I will have to
-                //go through the whole list
-                //need to erase the clause that is stored in the varInfo struct.vector/(map)
-                currInfo.clauseMembers.erase(currInfo.clauseMembers.begin() + variable);
-            }
+        //remove the false variable in the clauses
+        else {
+            clauses[clauseEntry].erase(variable);
         }
     }
 }
@@ -400,5 +407,13 @@ void assign(int variable, int value) {
     //variables.erase(variable);
 }
 
+/***************************************************************************
+ Function:  undoChanges
+ Inputs:    
+ Returns:   
+ Description:   undo changes made before call to SOLVESSAT
+ ***************************************************************************/
+void undoChanges(){
 
+}
 /****** END OF FILE **********************************************************/
