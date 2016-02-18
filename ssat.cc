@@ -152,43 +152,43 @@ void readFile(string input) {
         i--;
     }
     
-    cout << "first line " << sTemp << endl;
+    // cout << "first line " << sTemp << endl;
     //the comments
     tokenize(sTemp, vSTemp);
     maximumClauseLength = stoi(vSTemp.back());
-    cout << "maximumClauseLength " << maximumClauseLength << endl;
+    // cout << "maximumClauseLength " << maximumClauseLength << endl;
 
     getline(inFile, sTemp);
     tokenize(sTemp, vSTemp);
     minimumClauseLength = stoi(vSTemp.back());
-    cout << "minimumClauseLength " << minimumClauseLength << endl;
+    // cout << "minimumClauseLength " << minimumClauseLength << endl;
 
     getline(inFile, sTemp);
     tokenize(sTemp, vSTemp);
     averageClauseLength = stod(vSTemp.back());
-    cout << "averageClauseLength " <<averageClauseLength << endl;
+    // cout << "averageClauseLength " <<averageClauseLength << endl;
 
     getline(inFile, sTemp);
     tokenize(sTemp, vSTemp);
     seed = stoi(vSTemp.back());
-    cout << "seed " << seed << endl;
+    // cout << "seed " << seed << endl;
 
     getline(inFile, sTemp); 
     
     //v
     getline(inFile, sTemp);
-    cout << "v " << sTemp << endl;
+    // cout << "v " << sTemp << endl;
     tokenize(sTemp, vSTemp);
     numVars = stoi(vSTemp.back());
     cout << numVars << endl;
 
     //c
     getline(inFile, sTemp);
-    cout << "c " << sTemp << endl;
+    // cout << "c " << sTemp << endl;
     vSTemp.clear();
     tokenize(sTemp, vSTemp);
     numClauses = stoi(vSTemp.back());
-    cout << numClauses << endl;
+    // cout << numClauses << endl;
 
     getline(inFile, sTemp); 
     getline(inFile, sTemp); 
@@ -213,9 +213,9 @@ void readFile(string input) {
         count++;
         i--;    
     }
-    cout << "\n";
+    // cout << "\n";
 
-    cout << "variables size " << variables.size() << endl;
+    // cout << "variables size " << variables.size() << endl;
     // for(int leep = 1; leep < 4; leep++){
     //     cout << (variables.at(leep)).quantifier << " ";
     // }
@@ -250,7 +250,7 @@ void readFile(string input) {
         vITemp.clear();
     }
 
-    cout << "clauses size " << clauses.size() << endl;
+    // cout << "clauses size " << clauses.size() << endl;
     // map<int, vector <int> >::iterator it = clauses.begin();       
     // for(it = clauses.begin(); it!=clauses.end(); ++it){
     //     cout << it->first << ":";
@@ -272,6 +272,7 @@ void readFile(string input) {
     // cout << "\n";
 
     inFile.close();
+    cout << "File read successfully" << endl;
 }
 
 /***************************************************************************
