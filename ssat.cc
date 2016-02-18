@@ -112,7 +112,7 @@ int main(int argc, char* argv[]) {
     start = clock();
     //SOLVESSAT();
     end = clock();
-    solutionTime = double(start-end) 
+    solutionTime = double(start-end);
     
 	return 0;
 }
@@ -283,13 +283,41 @@ void readFile(string input) {
  ***************************************************************************/
 double SOLVESSAT(){
 
-    //begin checking for pure CHOICE variable
+    if(clauses.empty()){
+        return 1.0;
+    }
+    
     pair<bool, int> result;
     varInfo savedInfo;
     map<int, set <int> > savedSATClauses;
     vector<int> savedFalseLiteralClause;
-
+    
     int v = 0;
+    
+    //check for unit clauses
+    for(map<int, set<int> >::iterator it = clauses.begin(); it != clauses.end(); it++){
+        if(it->second.size() == 1){
+            bool isPositive = true;
+            set<int>::iterator se = it->second.begin();
+            v = *se;
+            if(v < 0){
+                isPositive = false;
+                v *= -1;
+            }
+            updateClausesAndVariables(v, isPositive, &savedSATClauses, &savedFalseLiteralClause);
+            double probSAT = SOLVESSAT();
+            undoChanges(v, &savedInfo, &savedSATClauses, &savedFalseLiteralClause);
+            if(variables[v].quantifier == -1.0){
+                return probSAT;
+            }
+            if(!isPositive){
+                //return probSAT * prob[v=FALSE];
+            }
+            //return probSAT * prob[v=TRUE];
+        }
+    }
+    
+    //begin checking for pure CHOICE variable
     int value = 0;
 
     for (map<int, varInfo>::iterator it = variables.begin(); it != variables.end(); it++){
