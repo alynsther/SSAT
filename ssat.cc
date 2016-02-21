@@ -8,20 +8,20 @@
     effectiveness of unit clause propagation, pure variable elimination, and 
     three different splitting heuristics
  
- Notes: 
- Run this program with 2 arguments on the command line
- 
  Running instructions:
- Run this program with two arugments on the command line 
-    the input file
+ Run this program with two arguments on the command line 
+    the input file and the algorithm
     
-    g++ -Wall -o ssat ssat.cc
+    g++ -Wall -o ssat ssat.cc [file name]
     ./ssat [file name]
 
-    Running on dover: g++ -std=c++11 -Wall -o ssat ssat.cc
+    Running on dover: g++ -std=c++11 -Wall -o ssat ssat.cc [file name]
     ./ssat [file name]
 
- Data Structures:
+
+NOTES FROM ADELA FOR SPLITTING HEURISTIC:
+https://books.google.com/books?id=GGJM0lXMJQgC&pg=PA549&lpg=PA549&dq=ssat+splitting+heuristic&source=bl&ots=B5xvoZ_GJ7&sig=My0bzEyQwMarXUcoMi4p2mf6wFg&hl=en&sa=X&ved=0ahUKEwjP16HRoYjLAhWEVj4KHZSUCekQ6AEIHzAA#v=onepage&q=ssat%20splitting%20heuristic&f=false
+On page 549+, it lists 6 splitting heuristics and their performances
 
 ******************************************************************************/
 
@@ -37,22 +37,25 @@
 #include <algorithm>
 #include <map>
 #include <set>
+#include <ctime>
 
 using namespace std;
 
 /***************************************************************************/
 /* constants */
 static const double CHOICE_VALUE = -1.0;
+static const double SATISFIED = 1.0;
 static const int POSITIVE = 1;
 static const int NEGATIVE = -1;
 static const int INVALID = 0; 
-
-/***************************************************************************/
+static const int UNIT_SIZE = 1;
+static const int FAILURE = 0.0;
+static const int SUCCESS = 1.0;
 
 /***************************************************************************/
 /* structs */
 typedef struct varInfo{
-    double quantifier;                   // choice/chance (probability if chance)
+    double quantifier;              // choice/chance (probability if chance)
     map<int, int> clauseMembers;    // key: index of the clauses the var is in
                                     // value: POS/NEG in its respective clauses        
 } varInfo;
@@ -63,22 +66,20 @@ int maximumClauseLength;
 int minimumClauseLength;
 double averageClauseLength;
 int seed;
-
 int numVars;
 int numClauses;
 
 map <int, varInfo> variables;
-
-//Adela
-//map <int, vector<int> > clauses;
-
-//Son: I changed the data structure of clauses to map <int, set> because if 
-//we want to remove a literal from a clause we wouldn't have to go through
-//the whole clause but we can access it in constant time using a set
 map <int, set<int> > clauses;
 map <int, int> assignment;
 
-//what happened to the solution tree variable?
+bool UNSATclauseExists = false;
+
+//A: we also have to record the following for every run
+int numUnitClausePropagations;
+int numPureVariableEliminations;
+int numVariableSplits;
+double percentageVariableSplits; // out of 2^n-1 splits
 
 /***************************************************************************/
 /* functions */
@@ -86,14 +87,20 @@ double SOLVESSAT();
 void readFile(string input);
 void tokenize(string str, vector<string> &token_v);
 pair<bool, int> isPureChoice(int variable);
-int variableSignInClause(int clauseEntry);
+//A: this function was missing the int variable part
+int variableSignInClause(int clauseEntry, int variable);
 void updateClausesAndVariables(int variable, int value, 
                                 map<int, set<int> >* savedSATClausesPtr, 
-                                vector<int>* savedFalseLiteralClausePtr);
+                                vector<int>* savedFalseLiteralClausePtr,
+                                map<int, double>* savedInactiveVariables);
 void assign(int variable, int value);
-void undoChanges(int variable, varInfo* savedInfo, map<int, set<int> >* savedSATClausesPtr, 
-                    vector<int>* savedFalseLiteralClausePtr);
+void undoChanges(int variable, int value, varInfo* savedInfo, 
+                map<int, set<int> >* savedSATClausesPtr, 
+                vector<int>* savedFalseLiteralClausePtr,
+                map<int, double>* savedInactiveVariables);
 int unassigned_var();
+void printVariables();
+void printClauses();
 
 /*****************************************************************************
  Function:  main
@@ -110,11 +117,440 @@ int main(int argc, char* argv[]) {
     //solving SSAT
     double start, end, solutionTime;
     start = clock();
-    //SOLVESSAT();
+    cout << "RESULT OF SOLVESSAT " << SOLVESSAT() << endl;
     end = clock();
-    solutionTime = double(start-end);
+    solutionTime = double(start-end)/CLOCKS_PER_SEC;
+    cout << "Algorithm Running Time: " << solutionTime << endl;
+    return 0;
+}
+
+/***************************************************************************
+ Function:  SOLVESSAT
+ Inputs:    nothing
+ Returns:   double
+ Description:
+            THE MAIN ALGORITHM IMPLEMENTATION
+            clauses, assignment, chance-var-probabilities
+ ***************************************************************************/
+double SOLVESSAT(){
+    if(clauses.empty()){
+        return SUCCESS;
+    }
+
+    if (UNSATclauseExists || variables.empty() == true) {
+        return FAILURE;
+    }
     
-	return 0;
+    pair<bool, int> result;
+    varInfo savedInfo;
+    map<int, set <int> > savedSATClauses;
+    vector<int> savedFalseLiteralClause;
+    map<int, double> savedInactiveVariables;
+    
+    int v = 0;
+    int value = 0;
+    
+    printVariables();
+    printClauses();
+        
+    //check for unit clauses
+    for(map<int, set<int> >::iterator it = clauses.begin(); it != clauses.end(); it++){
+
+        if(it->second.size() == UNIT_SIZE){
+            value = POSITIVE;
+            set<int>::iterator se = it->second.begin();
+            v = *se;
+
+            cout << "found " << v << " in unit clause " << it->first << endl;
+
+            if(v < 0){
+                value = NEGATIVE;
+                v *= NEGATIVE;
+                //A: potential problem? check
+            }
+
+            savedInfo.quantifier = variables[v].quantifier;
+            savedInfo.clauseMembers = variables[v].clauseMembers;
+            
+            updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+            // cout << "============== AFTER UPDATE UNIT CLAUSE ==============" << endl;
+            // printVariables();
+            // printClauses();
+            // cout << "============== END UPDATE UNIT CLAUSE ==============" << endl;
+            double probSAT = SOLVESSAT();
+            
+            undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+            cout << "============== AFTER UNDO UNIT CLAUSE ==============" << endl;
+            printVariables();
+            printClauses();
+            cout << "============== END UPDATE UNIT CLAUSE ==============" << endl;
+            
+            if(variables[v].quantifier == CHOICE_VALUE){
+                return probSAT;
+            }
+            
+            if(value == NEGATIVE){
+                return probSAT * (1 - variables[v].quantifier);
+            }
+            
+            return probSAT * variables[v].quantifier;
+        }
+    }
+    
+    // cout << "============== AFTER UNIT =============== " << endl;
+    // printVariables();
+    // printClauses();
+    
+    //begin checking for pure CHOICE variable
+    for (map<int, varInfo>::iterator it = variables.begin(); it != variables.end(); it++){
+
+        cout << "checking if " << it->first << " is pure " << endl;
+
+        result = isPureChoice(it->first);
+        v = it->first;        
+
+        if(result.first == false) {
+            continue;
+        } 
+        else {
+
+            cout << "Found PURE VARIABLE " << v << " with value " << result.second << endl;
+
+            savedInfo.quantifier = variables[v].quantifier;
+            savedInfo.clauseMembers = variables[v].clauseMembers;
+            value = result.second;
+            assign(v, value);
+            updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+            double probSSAT = SOLVESSAT();
+            undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+            cout << "============== AFTER UNDO PURE CHOICE ==============" << endl;
+            printVariables();
+            printClauses();
+            cout << "============== AFTER UNDO PURE CHOICE ==============" << endl;
+            return probSSAT;
+        }
+    }
+    // //end checking for pure CHOICE variable
+    // cout << "============== AFTER PURE CHOICE =============== " << endl;
+    // printVariables();
+    // printClauses();
+
+    //begin choosing the next variable to assign value (no UCP or PCE)
+
+    v = unassigned_var();
+
+    if (v == INVALID) {
+        cout << "The variable is invalid" << endl;
+        return FAILURE;
+    }
+    
+    //try setting v to FALSE
+    assign(v, NEGATIVE);
+    value = NEGATIVE;
+
+    cout << "No more unit & pure. Assigning: " << v << " as " << value << endl;
+    
+    savedInfo.quantifier = variables[v].quantifier;
+    savedInfo.clauseMembers = variables[v].clauseMembers;
+    updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+    double probSATWithFalse = SOLVESSAT();
+    cout << "return from SOLVESSAT for false assignment " << probSATWithFalse << endl;
+    undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+
+    cout << "============== UNDO FALSE ASSIGNMENT ==============" << endl;
+    printVariables();
+    printClauses();
+    cout << "============== AFTER UNDO FALSE ASSIGNMENT ==============" << endl;
+    
+    //try setting v to TRUE
+    assign(v, POSITIVE);
+    value = POSITIVE;
+
+    cout << "No more unit & pure. Assigning: " << v << " as " << value << endl;
+
+    savedInfo.quantifier = variables[v].quantifier;
+    savedInfo.clauseMembers = variables[v].clauseMembers;
+    
+    updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+    double probSATWithTrue = SOLVESSAT();
+
+    cout << "return from SOLVESSAT for true assignment " << probSATWithTrue << endl;
+    undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+
+    cout << "============== UNDO TRUE ASSIGNMENT ==============" << endl;
+    printVariables();
+    printClauses();
+    cout << "============== AFTER UNDO TRUE ASSIGNMENT ==============" << endl;    
+
+    if(variables[v].quantifier == CHOICE_VALUE){
+        return max(probSATWithFalse, probSATWithTrue);
+    }
+    
+    return probSATWithFalse * (1 - variables[v].quantifier) + probSATWithTrue * variables[v].quantifier;
+}
+
+/***************************************************************************
+ Function:  isPureChoice
+ Inputs:    int
+ Returns:   True if the variable is a pure choice variable
+ Description:
+ ***************************************************************************/
+pair<bool, int> isPureChoice(int variable) {
+    varInfo info = variables[variable];
+    if (info.quantifier != CHOICE_VALUE) {
+        return pair<bool, int>(false, INVALID);
+    }
+
+    map<int, int>* clauseInfo = &(info.clauseMembers);
+    int status = POSITIVE;
+    bool signSwitch = false;
+
+    printVariables();
+
+    for (map<int, int>::iterator it = (*clauseInfo).begin(); it != (*clauseInfo).end(); it++){
+        if (!signSwitch) {
+            status = it->second;
+            signSwitch = true;
+        }
+        else {
+            if (status != it->second) {
+                return pair<bool, int>(false, INVALID);
+            }
+        }
+    }
+
+    return pair<bool, int>(true, status);
+}
+
+/***************************************************************************
+ Function:  variableSignInClause
+ Inputs:    int
+ Returns:   int (positive or negative)
+ Description:   indicates the sign of a variable within a given clause
+ ***************************************************************************/
+int variableSignInClause(int clauseEntry, int variable) {
+    return variables[variable].clauseMembers[clauseEntry];
+}
+
+/***************************************************************************
+ Function:  updateClausesAndVariables
+ Inputs:    int
+ Returns:   int (positive or negative)
+ Description:   remove all satisfactory clauses after a given assignment
+ ***************************************************************************/
+void updateClausesAndVariables(int variable, int value, 
+                                map<int, set<int> >* savedSATClausesPtr, 
+                                vector<int>* savedFalseLiteralClausePtr,
+                                map<int, double>* savedInactiveVariables) {
+    varInfo* info = &(variables[variable]);
+    map<int, int>* clauseSet = &((*info).clauseMembers);
+
+    cout << "UPDATING VARIABLES AND CLAUSES WITH " << variable << " of value " << value << endl;
+
+    for(map<int, int>::iterator it = (*clauseSet).begin(); it != (*clauseSet).end(); it++) {
+        int clauseEntry = it->first;
+        int clauseEntryValue = it->second;
+
+        //remove clauses that have the true-value variables
+        if (clauseEntryValue == value){
+
+            //save true clause for undochanges
+            (*savedSATClausesPtr).insert(pair<int, set<int> >(clauseEntry, clauses[clauseEntry]));  
+            
+            //going through the satisfied clause to update its variables' clauseMembers
+            for (set<int>::iterator iter = clauses[clauseEntry].begin(); iter != clauses[clauseEntry].end(); iter++){
+                
+                //skip the being examined variable because we will delete them from
+                //variables map later
+     
+                int removedVar = abs(*iter);
+
+                if (removedVar == variable){
+                    continue;
+                }
+
+                //cout << "checking " << *iter << " in clause " << clauseEntry << endl;
+
+
+                //if variable we need to update is still active (i.e in the variables map) then remove the 
+                //clauseEntry from that variable
+                if (variables.find(removedVar) != variables.end()){
+                    variables[removedVar].clauseMembers.erase(clauseEntry);
+
+                    //if the variable after update is in no active clause then remove that variable from variables map
+                    if (variables[removedVar].clauseMembers.empty() == true){
+                        //cout << "saving " << removedVar << " with " << variables[removedVar].quantifier << endl;
+                        (*savedInactiveVariables).insert(pair<int, double>(removedVar, variables[removedVar].quantifier));
+                        variables.erase(removedVar);
+                    }
+                }
+
+            }
+
+            //clauseEntry becomes inactive, removed from clauses
+            clauses.erase(clauseEntry);
+        }
+
+        //remove the falsely assigned variable in the clauses
+        else {
+            (*savedFalseLiteralClausePtr).push_back(clauseEntry);
+            clauses[clauseEntry].erase(NEGATIVE * value * variable);
+
+            if (clauses[clauseEntry].empty() == true){
+                UNSATclauseExists = true;
+                //return;
+            }
+        }
+    }
+
+    //variable becomes inactive, removed from variables map
+    variables.erase(variable);
+}
+
+/***************************************************************************
+ Function:  assign
+ Inputs:    int
+ Returns:   int (positive or negative)
+ Description:   indicates the sign of a variable within a given clause
+ ***************************************************************************/
+void assign(int variable, int value) {
+    assignment[variable] = value * variable;
+    //variables.erase(variable);
+}
+
+/***************************************************************************
+ Function:  unassigned_var
+ Inputs:    
+ Returns:   int (what variable)
+ Description:   return the next variable in the same block with no assigned value
+ ***************************************************************************/
+int unassigned_var(){
+    if (variables.empty() == true) {
+        return INVALID;
+    }
+    return variables.begin()->first;
+}
+
+/***************************************************************************
+ Function:  undoChanges
+ Inputs:    
+ Returns:   
+ Description:   undo changes made before call to SOLVESSAT
+ ***************************************************************************/
+void undoChanges(int variable, int value, varInfo* savedInfo, 
+                map<int, set<int> >* savedSATClausesPtr, 
+                vector<int>* savedFalseLiteralClausePtr,
+                map<int, double>* savedInactiveVariables){
+
+    //put back the assigned variable to variables list
+    //A: is this missing an it++?
+    for (map<int, double>:: iterator it = (*savedInactiveVariables).begin(); it != (*savedInactiveVariables).end();){
+        // cout << "undoing " << it->first << " to " << it->second << endl;
+        variables[it->first].quantifier = it->second;
+        (*savedInactiveVariables).erase(it++);
+    }
+
+    variables[variable].quantifier = (*savedInfo).quantifier;
+    variables[variable].clauseMembers = (*savedInfo).clauseMembers;
+
+    cout << "VARIABLE PUT BACK" << endl;
+    printVariables();
+    printClauses();
+
+    //put back SAT clauses to clauses list
+    for (map<int, set<int> >::iterator it = (*savedSATClausesPtr).begin(); it != (*savedSATClausesPtr).end(); it++){
+        clauses[it->first] = it->second;
+        
+        //put back the satisfied clauses to their corresponding variables
+        for (set<int>::iterator iter = (it->second).begin(); iter != (it->second).end(); iter++){
+            int savedVariable = abs(*iter);
+            
+            //value is wrong but need to figure what??
+            //A: do you need a pos/neg for value instead?
+            //  also put parenthesis in
+
+            //Son's version
+            // (variables[savedVariable].clauseMembers).insert(pair<int, int>(it->first, value));
+
+            //A: ADELA'S VERSION
+            if (*iter > 0){
+                (variables[savedVariable].clauseMembers).insert(pair<int, int>(it->first, POSITIVE));
+            }
+            else {
+                (variables[savedVariable].clauseMembers).insert(pair<int, int>(it->first, NEGATIVE));
+            }
+        }
+    }
+
+    //put back FALSE literals to their original clauses
+    //A: i think u meant to insert value instead of variable?
+    for (vector<int>::iterator it = (*savedFalseLiteralClausePtr).begin(); it != (*savedFalseLiteralClausePtr).end(); it++){
+
+        //Son's Version
+        // clauses[*it].insert(variable);
+
+        //A: ADELA'S VERSION
+        if ((variables[variable].clauseMembers)[*it] > 0){
+            clauses[*it].insert(variable);
+        }
+        else {
+            clauses[*it].insert(NEGATIVE * variable);
+        }
+    }
+
+    UNSATclauseExists = false;
+}
+
+
+/***************************************************************************/
+/* UTILITY FUNCTIONS */
+
+/***************************************************************************
+ Function:  printClauses
+ Inputs:    nothing
+ Returns:   nothing
+ Description:   undo changes made before call to SOLVESSAT
+ ***************************************************************************/
+void printClauses() {
+    cout << "printing clauses " << endl;
+    map<int, set <int> >::iterator it;
+    for(it = clauses.begin(); it!=clauses.end(); ++it){
+        cout << it->first << ":";
+        set<int>::iterator iter;
+
+        for(iter = (it->second).begin(); iter!=(it->second).end();++iter){
+            cout << " " << (*iter);
+        }
+        cout << endl;
+    }
+    cout << "\n";
+}
+
+/***************************************************************************
+ Function:  printVariables
+ Inputs:    nothing
+ Returns:   nothing
+ Description:   undo changes made before call to SOLVESSAT
+ ***************************************************************************/
+void printVariables() {
+    
+    map<int, varInfo>::iterator it;
+
+    cout << "printing variable quantifiers " << endl;
+    for(it = variables.begin(); it != variables.end(); it++){
+        cout << it->first << " => " << (it->second).quantifier << endl;
+    }
+    cout << "\n";
+    
+    cout << "printing varInfo" << endl; 
+    for (it = variables.begin(); it != variables.end(); it++){
+        map<int, int>::iterator itClause = (it->second).clauseMembers.begin();
+        cout << "Clause Set of variable " << it->first << endl;
+        for (; itClause != (it->second).clauseMembers.end(); itClause++){
+            cout << itClause->first << " =>"<< itClause->second << endl;
+        }
+        cout << endl;
+    }
 }
 
 /***************************************************************************
@@ -129,13 +565,7 @@ void readFile(string input) {
     string sTemp;
     ifstream inFile;
     vector<string> vSTemp;
-    
-    //Adela's version
-    //vector<int> vITemp;
-
-    //Son's version: 
     set<int> vITemp;
-
     int i;
 
     inFile.open(input.c_str());
@@ -180,7 +610,7 @@ void readFile(string input) {
     // cout << "v " << sTemp << endl;
     tokenize(sTemp, vSTemp);
     numVars = stoi(vSTemp.back());
-    cout << numVars << endl;
+    // cout << numVars << endl;
 
     //c
     getline(inFile, sTemp);
@@ -193,7 +623,7 @@ void readFile(string input) {
     getline(inFile, sTemp); 
     getline(inFile, sTemp); 
 
-    cout << "vars " << sTemp << endl;
+    // cout << "vars " << sTemp << endl;
     //variables
     i = numVars;
     unsigned int count = 1;
@@ -213,140 +643,34 @@ void readFile(string input) {
         count++;
         i--;    
     }
-    // cout << "\n";
-
-    // cout << "variables size " << variables.size() << endl;
-    // for(int leep = 1; leep < 4; leep++){
-    //     cout << (variables.at(leep)).quantifier << " ";
-    // }
-    // cout << "\n";
 
     getline(inFile, sTemp);
     getline(inFile, sTemp);
+    
     for(i = 0; i < numClauses; i++){
         vSTemp.clear();
         getline(inFile, sTemp);
         tokenize(sTemp, vSTemp);
         vSTemp.pop_back();
+        
         for(unsigned int j = 0; j < vSTemp.size(); j++){
-            int num = stoi(vSTemp.at(j).c_str());
-            //Adela's version: vITemp.push_back(num);
-            //Son's version:
+            int num = stoi(vSTemp[j].c_str());
             vITemp.insert(num); 
+            
             if(num > 0){
-                ((variables.at(abs(num))).clauseMembers).insert(pair<int, int>(i, POSITIVE));
+                ((variables[abs(num)]).clauseMembers).insert(pair<int, int>(i, POSITIVE));
             }
             else{
-                ((variables.at(abs(num))).clauseMembers).insert(pair<int, int>(i, NEGATIVE));
+                ((variables[abs(num)]).clauseMembers).insert(pair<int, int>(i, NEGATIVE));
             }
-
         }
 
-        //Adela
-        //clauses.insert(pair<int, vector<int> >(i,vITemp));
-
-        //Son
         clauses.insert(pair<int, set<int> >(i,vITemp));
         vITemp.clear();
     }
-
-    // cout << "clauses size " << clauses.size() << endl;
-    // map<int, vector <int> >::iterator it = clauses.begin();       
-    // for(it = clauses.begin(); it!=clauses.end(); ++it){
-    //     cout << it->first << ":";
-    //     vector<int>::iterator iter;
-
-    //     for(iter = (it->second).begin(); iter!=(it->second).end();++iter){
-    //         cout << " " << (*iter);
-    //     }
-    //     cout << endl;
-    // }
-
-    // for(int leep = 1; leep < 4; leep++){
-    //     map<int, int>::iterator it1 = ((variables.at(leep)).clauseMembers).begin();       
-    //     for(it1 = ((variables.at(leep)).clauseMembers).begin(); it1!=((variables.at(leep)).clauseMembers).end(); it1++){
-    //         cout << leep << " " << it1->first << " =>"<< it1->second << endl;
-    //     }
-    //     cout << "\n";
-    // }
-    // cout << "\n";
-
+    
     inFile.close();
     cout << "File read successfully" << endl;
-}
-
-/***************************************************************************
- Function:  SOLVESSAT
- Inputs:    clauses, assignment, chance-var-probabilities
- Returns:   double
- Description:
-            THE MAIN ALGORITHM IMPLEMENTATION
- ***************************************************************************/
-double SOLVESSAT(){
-
-    if(clauses.empty()){
-        return 1.0;
-    }
-    
-    pair<bool, int> result;
-    varInfo savedInfo;
-    map<int, set <int> > savedSATClauses;
-    vector<int> savedFalseLiteralClause;
-    
-    int v = 0;
-    
-    //check for unit clauses
-    for(map<int, set<int> >::iterator it = clauses.begin(); it != clauses.end(); it++){
-        if(it->second.size() == 1){
-            bool isPositive = true;
-            set<int>::iterator se = it->second.begin();
-            v = *se;
-            if(v < 0){
-                isPositive = false;
-                v *= -1;
-            }
-            updateClausesAndVariables(v, isPositive, &savedSATClauses, &savedFalseLiteralClause);
-            double probSAT = SOLVESSAT();
-            undoChanges(v, &savedInfo, &savedSATClauses, &savedFalseLiteralClause);
-            if(variables[v].quantifier == -1.0){
-                return probSAT;
-            }
-            if(!isPositive){
-                return probSAT * (1 - variables[v].quantifier);
-            }
-            return probSAT * variables[v].quantifier;
-        }
-    }
-    
-    //begin checking for pure CHOICE variable
-    int value = 0;
-
-    for (map<int, varInfo>::iterator it = variables.begin(); it != variables.end(); it++){
-        v = it->first;
-        result = isPureChoice(it->first);
-        if(result.first == false) {
-            continue;
-        }
-        else {
-            savedInfo.quantifier = variables[v].quantifier;
-            savedInfo.clauseMembers = variables[v].clauseMembers;
-            value = result.second;
-            assign(v, value);
-            updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause);
-            double probSSAT = SOLVESSAT();
-            undoChanges(v, &savedInfo, &savedSATClauses, &savedFalseLiteralClause);
-            return probSSAT;
-        }
-    }
-    //end checking for pure CHOICE variable
-
-    //begin choosing the next variable to assign value (no UCP or PCE)
-
-    v = unassigned_var();
-
-    //end choosing the next variable to assign value (no UCP or PCE)
-
-    return 0.0;
 }
 
 /***************************************************************************
@@ -369,123 +693,5 @@ void tokenize(string str, vector<string> &token_v){
     }
 }
 
- 
-/***************************************************************************
- Function:  isPureChoice
- Inputs:    int
- Returns:   True if the variable is a pure choice variable
- Description:
- ***************************************************************************/
-pair<bool, int> isPureChoice(int variable) {
-    varInfo info = variables[variable];
-    if (info.quantifier != CHOICE_VALUE) {
-        return pair<bool, int>(false, INVALID);
-    }
 
-    map<int, int>* clauseInfo = &(info.clauseMembers);
-    int status = POSITIVE;
-    bool signSwitch = false;
-
-    for (map<int, int>::iterator it = (*clauseInfo).begin(); it != (*clauseInfo).end(); it++){
-        if (!signSwitch) {
-            status = it->second;
-            signSwitch = true;
-        }
-        else {
-            if (status != it->second) {
-                return pair<bool, int>(false, INVALID);
-            }
-        }
-    }
-
-    return pair<bool, int>(true, status);
-}
-
-/***************************************************************************
- Function:  variableSignInClause
- Inputs:    int
- Returns:   int (positive or negative)
- Description:   indicates the sign of a variable within a given clause
- ***************************************************************************/
-int variableSignInClause(int clauseEntry, int variable) {
-    return variables[variable].clauseMembers[clauseEntry];
-}
-
-/***************************************************************************
- Function:  updateClausesAndVariables
- Inputs:    int
- Returns:   int (positive or negative)
- Description:   remove all satisfactory clauses after a given assignment
- ***************************************************************************/
-void updateClausesAndVariables(int variable, int value, 
-                                map<int, set<int> >* savedSATClausesPtr, 
-                                vector<int>* savedFalseLiteralClausePtr) {
-    varInfo info = variables[variable];
-
-    map<int, int>* clauseSet = &(info.clauseMembers);
-
-    for(map<int, int>::iterator it = (*clauseSet).begin(); it != (*clauseSet).end(); ) {
-        
-        int clauseEntry = it->first;
-        int clauseEntryValue = it->second;
-
-        //remove clauses that have the true-value variables
-        if (clauseEntryValue == value){
-            (*savedSATClausesPtr).insert(pair<int, set<int> >(clauseEntry, clauses[clauseEntry]));
-            clauses.erase(clauseEntry);
-        }
-
-        //remove the false variable in the clauses
-        else {
-            (*savedFalseLiteralClausePtr).push_back(clauseEntry);
-            clauses[clauseEntry].erase(variable);
-        }
-    }
-
-    variables.erase(variable);
-}
-
-/***************************************************************************
- Function:  assign
- Inputs:    int
- Returns:   int (positive or negative)
- Description:   indicates the sign of a variable within a given clause
- ***************************************************************************/
-void assign(int variable, int value) {
-    assignment[variable] = value;
-    //variables.erase(variable);
-}
-
-/***************************************************************************
- Function:  unassigned_var
- Inputs:    
- Returns:   int (what variable)
- Description:   return the next variable in the same block with no assigned value
- ***************************************************************************/
-int unassigned_var(){
-    return variables.begin()->first;
-}
-
-/***************************************************************************
- Function:  undoChanges
- Inputs:    
- Returns:   
- Description:   undo changes made before call to SOLVESSAT
- ***************************************************************************/
-void undoChanges(int variable, varInfo* savedInfo, map<int, set<int> >* savedSATClausesPtr, 
-                    vector<int>* savedFalseLiteralClausePtr){
-
-    //put back the assigned variable to variables list
-    variables.insert(pair<int, varInfo>(variable, *savedInfo));
-
-    //put back SAT clauses to clauses list
-    for (map<int, set<int> >::iterator it = (*savedSATClausesPtr).begin(); it != (*savedSATClausesPtr).end(); it++){
-        clauses[it->first] = it->second;
-    }
-
-    //put back FALSE literals to their original clauses
-    for (vector<int>::iterator it = (*savedFalseLiteralClausePtr).begin(); it != (*savedFalseLiteralClausePtr).end(); it++){
-        clauses[*it].insert(variable);
-    }
-}
 /****** END OF FILE **********************************************************/
