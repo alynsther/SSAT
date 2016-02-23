@@ -5,4 +5,4 @@ ssat:
 	$(CC) $(CFLAGS) -o ssat ssat.cc
 
 clean:
-	$(RM) ssat
+	$(RM) -rm -f ssat

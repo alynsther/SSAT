@@ -85,10 +85,18 @@ double percentageVariableSplits; // out of 2^n-1 splits
 
 /***************************************************************************/
 /* functions */
+<<<<<<< HEAD
 double SOLVESSAT(int splittingHeuristic);
 double UCPSOLVESSAT(int splittingHeuristic);
 double PVESOLVESSAT(int splittingHeuristic);
 double UCPPVESOLVESSAT(int splittingHeuristic);
+=======
+double SOLVESSAT();
+double UCPSOLVESSAT();
+double PVESOLVESSAT();
+double UCPPVESOLVESSAT();
+double HEURISTICSOLVESSAT();
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
 void readFile(string input);
 void tokenize(string str, vector<string> &token_v);
 pair<bool, int> isPureChoice(int variable);
@@ -119,7 +127,9 @@ void resultsPrint(int num, string name);
  Description:
  *****************************************************************************/
 int main(int argc, char* argv[]) {
+
     //open the file for reading
+<<<<<<< HEAD
     string input = argv[1];
     readFile(input);
     // double start, end, solutionTime;
@@ -243,6 +253,42 @@ void resultsPrint(int num, string name) {
     file << "numVariableSplits" << "," << numVariableSplits << "\n";
     file << "percentageVariableSplits" << "," << percentageVariableSplits << "\n"; 
     file.close();
+=======
+
+    string input = argv[1];
+    readFile(input);
+    double start, end, solutionTime;
+
+    //UCP & PVE
+    start = clock();
+    cout << "RESULT OF UCPPVESOLVESSAT " << UCPPVESOLVESSAT() << endl;
+    end = clock();
+    solutionTime = double(end-start)/CLOCKS_PER_SEC;
+    cout << "Algorithm Running Time with UCP & PVE: " << solutionTime << endl;
+
+    //UCP ONLY
+    start = clock();
+    cout << "RESULT OF UCPSOLVESSAT " << UCPSOLVESSAT() << endl;
+    end = clock();
+    solutionTime = double(end-start)/CLOCKS_PER_SEC;
+    cout << "Algorithm Running Time with UCP only: " << solutionTime << endl;
+
+    //PVE ONLY
+    start = clock();
+    cout << "RESULT OF PVESOLVESSAT " << PVESOLVESSAT() << endl;
+    end = clock();
+    solutionTime = double(end-start)/CLOCKS_PER_SEC;
+    cout << "Algorithm Running Time with PVE only : " << solutionTime << endl;
+
+    //NO PVE OR UCP
+    start = clock();
+    cout << "RESULT OF PVESOLVESSAT " << SOLVESSAT() << endl;
+    end = clock();
+    solutionTime = double(end-start)/CLOCKS_PER_SEC;
+    cout << "Algorithm Running Time with no UCP or PVE: " << solutionTime << endl;
+
+    return 0;
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
 }
 
 /***************************************************************************
@@ -253,7 +299,11 @@ void resultsPrint(int num, string name) {
             THE MAIN ALGORITHM IMPLEMENTATION
             clauses, assignment, chance-var-probabilities
  ***************************************************************************/
+<<<<<<< HEAD
 double UCPPVESOLVESSAT(int splittingHeuristic){
+=======
+double UCPPVESOLVESSAT(){
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     if(clauses.empty()){
         return SUCCESS;
     }
@@ -291,7 +341,11 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
             
             updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
+<<<<<<< HEAD
             double probSAT = UCPPVESOLVESSAT(splittingHeuristic);
+=======
+            double probSAT = UCPPVESOLVESSAT();
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
             
             undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
             
@@ -326,7 +380,11 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
 
             updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
+<<<<<<< HEAD
             double probSSAT = UCPPVESOLVESSAT(splittingHeuristic);
+=======
+            double probSSAT = UCPPVESOLVESSAT();
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
 
             undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -337,6 +395,7 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
 
     //BEGIN VARIABLE SPLITS
 
+<<<<<<< HEAD
     switch (splittingHeuristic){
         case 0: 
             v = randomSH();
@@ -349,6 +408,9 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
             break;
     }
     // v = unassigned_var();
+=======
+    v = unassigned_var();
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
 
     if (v == INVALID) {
         cout << "The variable is invalid" << endl;
@@ -366,7 +428,11 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
+<<<<<<< HEAD
     double probSATWithFalse = UCPPVESOLVESSAT(splittingHeuristic);
+=======
+    double probSATWithFalse = UCPPVESOLVESSAT();
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -383,7 +449,11 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
+<<<<<<< HEAD
     double probSATWithTrue = UCPPVESOLVESSAT(splittingHeuristic);
+=======
+    double probSATWithTrue = UCPPVESOLVESSAT();
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -406,7 +476,11 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
             THE MAIN ALGORITHM IMPLEMENTATION 
             using ONLY UCP
  ***************************************************************************/
+<<<<<<< HEAD
 double UCPSOLVESSAT(int splittingHeuristic){
+=======
+double UCPSOLVESSAT(){
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     if(clauses.empty()){
         return SUCCESS;
     }
@@ -438,6 +512,7 @@ double UCPSOLVESSAT(int splittingHeuristic){
             }
 
             assign(v, value);
+<<<<<<< HEAD
 
             savedInfo.quantifier = variables[v].quantifier;
             savedInfo.clauseMembers = variables[v].clauseMembers;
@@ -483,6 +558,42 @@ double UCPSOLVESSAT(int splittingHeuristic){
     
     //try setting v to FALSE
 
+=======
+
+            savedInfo.quantifier = variables[v].quantifier;
+            savedInfo.clauseMembers = variables[v].clauseMembers;
+            
+            updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+
+            double probSAT = UCPSOLVESSAT();
+            
+            undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+            
+            if(variables[v].quantifier == CHOICE_VALUE){
+                return probSAT;
+            }
+            
+            if(value == NEGATIVE){
+                return probSAT * (1 - variables[v].quantifier);
+            }
+            
+            return probSAT * variables[v].quantifier;
+        }
+    }
+    //END UNIT CLAUSES PROPAGATION
+
+    //BEGIN VARIABLE SPLITS
+
+    v = unassigned_var();
+
+    if (v == INVALID) {
+        cout << "The variable is invalid" << endl;
+        return FAILURE;
+    }
+    
+    //try setting v to FALSE
+
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     assign(v, NEGATIVE);
     value = NEGATIVE;
 
@@ -492,6 +603,7 @@ double UCPSOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
+<<<<<<< HEAD
     double probSATWithFalse = UCPSOLVESSAT(splittingHeuristic);
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
@@ -504,12 +616,30 @@ double UCPSOLVESSAT(int splittingHeuristic){
     assign(v, POSITIVE);
     value = POSITIVE;
 
+=======
+    double probSATWithFalse = UCPSOLVESSAT();
+    
+    undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+
+    //end setting v to FALSE
+
+    
+    //try setting v to TRUE
+
+    assign(v, POSITIVE);
+    value = POSITIVE;
+
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     savedInfo.quantifier = variables[v].quantifier;
     savedInfo.clauseMembers = variables[v].clauseMembers;
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
+<<<<<<< HEAD
     double probSATWithTrue = UCPSOLVESSAT(splittingHeuristic);
+=======
+    double probSATWithTrue = UCPSOLVESSAT();
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -532,7 +662,11 @@ double UCPSOLVESSAT(int splittingHeuristic){
             THE MAIN ALGORITHM IMPLEMENTATION 
             using ONLY UCP
  ***************************************************************************/
+<<<<<<< HEAD
 double PVESOLVESSAT(int splittingHeuristic){
+=======
+double PVESOLVESSAT(){
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     if(clauses.empty()){
         return SUCCESS;
     }
@@ -568,7 +702,11 @@ double PVESOLVESSAT(int splittingHeuristic){
 
             updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
+<<<<<<< HEAD
             double probSSAT = PVESOLVESSAT(splittingHeuristic);
+=======
+            double probSSAT = PVESOLVESSAT();
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
 
             undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -576,6 +714,7 @@ double PVESOLVESSAT(int splittingHeuristic){
         }
     }
     //END PURE CHOICE ELIMINATION
+<<<<<<< HEAD
 
     //BEGIN VARIABLE SPLITS
 
@@ -592,6 +731,13 @@ double PVESOLVESSAT(int splittingHeuristic){
     }
     // v = unassigned_var();
 
+=======
+
+    //BEGIN VARIABLE SPLITS
+
+    v = unassigned_var();
+
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     if (v == INVALID) {
         cout << "The variable is invalid" << endl;
         return FAILURE;
@@ -608,7 +754,11 @@ double PVESOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
+<<<<<<< HEAD
     double probSATWithFalse = PVESOLVESSAT(splittingHeuristic);
+=======
+    double probSATWithFalse = PVESOLVESSAT();
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -625,7 +775,11 @@ double PVESOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
+<<<<<<< HEAD
     double probSATWithTrue = PVESOLVESSAT(splittingHeuristic);
+=======
+    double probSATWithTrue = PVESOLVESSAT();
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -648,7 +802,11 @@ double PVESOLVESSAT(int splittingHeuristic){
             THE MAIN ALGORITHM IMPLEMENTATION
             clauses, assignment, chance-var-probabilities
  ***************************************************************************/
+<<<<<<< HEAD
 double SOLVESSAT(int splittingHeuristic){
+=======
+double SOLVESSAT(){
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     if(clauses.empty()){
         return SUCCESS;
     }
@@ -668,6 +826,7 @@ double SOLVESSAT(int splittingHeuristic){
 
     //BEGIN VARIABLE SPLITS
 
+<<<<<<< HEAD
     switch (splittingHeuristic){
         case 0: 
             v = randomSH();
@@ -680,6 +839,9 @@ double SOLVESSAT(int splittingHeuristic){
             break;
     }
     // v = unassigned_var();
+=======
+    v = unassigned_var();
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
 
     if (v == INVALID) {
         cout << "The variable is invalid" << endl;
@@ -697,7 +859,11 @@ double SOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
+<<<<<<< HEAD
     double probSATWithFalse = SOLVESSAT(splittingHeuristic);
+=======
+    double probSATWithFalse = SOLVESSAT();
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -713,7 +879,11 @@ double SOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
+<<<<<<< HEAD
     double probSATWithTrue = SOLVESSAT(splittingHeuristic);
+=======
+    double probSATWithTrue = SOLVESSAT();
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -1014,9 +1184,12 @@ int unassigned_var(){
     return variables.begin()->first;
 }
 
+<<<<<<< HEAD
 /***************************************************************************/
 /* PRINTING FUNCTIONS */
 
+=======
+>>>>>>> 367009e5861f6f885bf4bdc959b6d8cc7e5a7172
 /***************************************************************************
  Function:  printClauses
  Inputs:    nothing
