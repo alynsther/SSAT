@@ -1,39 +1,40 @@
-/*****************************************************************************
+/****************************************************************************
  File:   ssat.cc
  Author: Adela Yang, Venecia Xu, Son Ngo
  Date:   February 2016
-
+ 
  Description:
  Implement a DPLL-based stochastic satisfiability (SSAT) solver to test the
-    effectiveness of unit clause propagation, pure variable elimination, and 
-    three different splitting heuristics
+ effectiveness of unit clause propagation, pure variable elimination, and
+ three different splitting heuristics
  
  Running instructions:
- Run this program with two arguments on the command line 
-    the input file and the algorithm
-    
-    g++ -Wall -o ssat ssat.cc [file name]
-    ./ssat [file name]
-
-    Running on dover: g++ -std=c++11 -Wall -o ssat ssat.cc [file name]
-    ./ssat [file name]
-
-
-NOTES FROM ADELA FOR SPLITTING HEURISTIC:
-https://goo.gl/Ax0bpc
-On page 549+, it lists 6 splitting heuristics and their performances
-
-******************************************************************************/
+ Run this program with two arguments on the command line
+ the input file and the algorithm
+ 
+ g++ -Wall -o ssat ssat.cc [file name]
+ ./ssat [file name]
+ 
+ Running on dover: g++ -std=c++11 -Wall -o ssat ssat.cc [file name]
+ ./ssat [file name]
+ 
+ 
+ NOTES FROM ADELA FOR SPLITTING HEURISTIC:
+ https://books.google.com/books?id=GGJM0lXMJQgC&pg=PA549&lpg=PA549&dq=ssat+splitting+heuristic&source=bl&ots=B5xvoZ_GJ7&sig=My0bzEyQwMarXUcoMi4p2mf6wFg&hl=en&sa=X&ved=0ahUKEwjP16HRoYjLAhWEVj4KHZSUCekQ6AEIHzAA#v=onepage&q=ssat%20splitting%20heuristic&f=false
+ On page 549+, it lists 6 splitting heuristics and their performances
+ 
+ ******************************************************************************/
 
 /*****************************************************************************/
 /* include files */
 #include <iostream>
 #include <vector>
-#include <string> 
-#include <fstream> 
+#include <string>
+#include <fstream>
 #include <sstream>
 #include <cstdlib>
-#include <cmath> 
+#include <cmath>
+#include <climits>
 #include <algorithm>
 #include <map>
 #include <set>
@@ -47,7 +48,7 @@ static const double CHOICE_VALUE = -1.0;
 static const double SATISFIED = 1.0;
 static const int POSITIVE = 1;
 static const int NEGATIVE = -1;
-static const int INVALID = 0; 
+static const int INVALID = 0;
 static const int UNIT_SIZE = 1;
 static const int FAILURE = 0.0;
 static const int SUCCESS = 1.0;
@@ -57,7 +58,7 @@ static const int SUCCESS = 1.0;
 typedef struct varInfo{
     double quantifier;              // choice/chance (probability if chance)
     map<int, int> clauseMembers;    // key: index of the clauses the var is in
-                                    // value: POS/NEG in its respective clauses        
+    // value: POS/NEG in its respective clauses
 } varInfo;
 
 /***************************************************************************/
@@ -77,40 +78,42 @@ bool UNSATclauseExists = false;
 bool headHasValue = false;
 
 //A: we also have to record the following for every run
-//S: what do we need this for?????
-int numUnitClausePropagations;
-int numPureVariableEliminations;
-int numVariableSplits;
-double percentageVariableSplits; // out of 2^n-1 splits
+int numUnitClausePropagations = 0 ;
+int numPureVariableEliminations = 0;
+int numVariableSplits = 0;
+double percentageVariableSplits = 0; // out of 2^n-1 splits
+
+//A: experimental
+vector <int> blocks; //it is inclusive, the indexes started are when a new block starts
 
 /***************************************************************************/
 /* functions */
-double SOLVESSAT(int splittingHeuristic);
-double UCPSOLVESSAT(int splittingHeuristic);
-double PVESOLVESSAT(int splittingHeuristic);
-double UCPPVESOLVESSAT(int splittingHeuristic);
+double SOLVESSAT(string splitHeurisitic);
+double UCPSOLVESSAT(splitHeurisitic);
+double PVESOLVESSAT(splitHeurisitic);
+double UCPPVESOLVESSAT()splitHeurisitic;
+double HEURISTICSOLVESSAT();
 void readFile(string input);
 void tokenize(string str, vector<string> &token_v);
 pair<bool, int> isPureChoice(int variable);
-
+//A: this function was missing the int variable part
 int variableSignInClause(int clauseEntry, int variable);
-void updateClausesAndVariables(int variable, int value, 
-                                map<int, set<int> >* savedSATClausesPtr, 
-                                vector<int>* savedFalseLiteralClausePtr,
-                                map<int, double>* savedInactiveVariables);
+void updateClausesAndVariables(int variable, int value,
+                               map<int, set<int> >* savedSATClausesPtr,
+                               vector<int>* savedFalseLiteralClausePtr,
+                               map<int, double>* savedInactiveVariables);
 void assign(int variable, int value);
-void undoChanges(int variable, int value, varInfo* savedInfo, 
-                map<int, set<int> >* savedSATClausesPtr, 
-                vector<int>* savedFalseLiteralClausePtr,
-                map<int, double>* savedInactiveVariables);
+void undoChanges(int variable, int value, varInfo* savedInfo,
+                 map<int, set<int> >* savedSATClausesPtr,
+                 vector<int>* savedFalseLiteralClausePtr,
+                 map<int, double>* savedInactiveVariables);
 int unassigned_var();
 void printVariables();
 void printClauses();
+void printBlocks();
 int randomSH();
 int maximumSH();
-//int undeterminedSH();
 vector<int> helperSH();
-void resultsPrint(int num, string name);
 
 /*****************************************************************************
  Function:  main
@@ -119,130 +122,51 @@ void resultsPrint(int num, string name);
  Description:
  *****************************************************************************/
 int main(int argc, char* argv[]) {
+
     //open the file for reading
+
     string input = argv[1];
     readFile(input);
-    // double start, end, solutionTime;
-    vector <int> splittingHeuristic;
-    splittingHeuristic.push_back(0); //random
-    splittingHeuristic.push_back(1); //maximum
-
-
-    vector <int>::iterator it;
-    for(it=splittingHeuristic.begin(); it!= splittingHeuristic.end(); it++) {
-        switch ((*it)){
-            case 0:
-                resultsPrint(0, "random");
-                break;
-            case 1:
-                resultsPrint(1, "maximum");
-                break;
-            default:
-                resultsPrint(-1, "vos");
-                break;
-        }
-    }
-
-    // //UCP & PVE
-    // start = clock();
-    // cout << "RESULT OF UCPPVESOLVESSAT " << UCPPVESOLVESSAT(splittingHeuristic) << endl;
-    // end = clock();
-    // solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    // cout << "Algorithm Running Time with UCP & PVE: " << solutionTime << endl;
-
-    // //UCP ONLY
-    // start = clock();
-    // cout << "RESULT OF UCPSOLVESSAT " << UCPSOLVESSAT(splittingHeuristic) << endl;
-    // end = clock();
-    // solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    // cout << "Algorithm Running Time with UCP only: " << solutionTime << endl;
-
-    // //PVE ONLY
-    // start = clock();
-    // cout << "RESULT OF PVESOLVESSAT " << PVESOLVESSAT(splittingHeuristic) << endl;
-    // end = clock();
-    // solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    // cout << "Algorithm Running Time with PVE only : " << solutionTime << endl;
-
-    // //NO PVE OR UCP
-    // start = clock();
-    // cout << "RESULT OF PVESOLVESSAT " << SOLVESSAT(splittingHeuristic) << endl;
-    // end = clock();
-    // solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    // cout << "Algorithm Running Time with no UCP or PVE: " << solutionTime << endl;
-    
-    return 0;
-}
-
-/*****************************************************************************
- Function:  resultsPrint
- Inputs:    number and name of splitting heuristic
- Returns:   nothing
- Description:   prints information to terminal and files
- *****************************************************************************/
-void resultsPrint(int num, string name) {
     double start, end, solutionTime;
-    ofstream file;
 
     //UCP & PVE
     start = clock();
-    cout << "RESULT OF UCPPVESOLVESSAT" + name + " " << UCPPVESOLVESSAT(num) << endl;
+    cout << "RESULT OF UCPPVESOLVESSAT " << UCPPVESOLVESSAT() << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    cout << "Algorithm Running Time with UCP & PVE: " + name << solutionTime << endl;
+    cout << "Algorithm Running Time with UCP & PVE: " << solutionTime << endl;
 
-    file.open ("ucppvesolvessat" + name + ".csv");
-    file << "solutionTime" << "," << solutionTime << "\n";
-    file << "numUnitClausePropagations" << "," << numUnitClausePropagations << "\n";
-    file << "numPureVariableEliminations" << "," << numPureVariableEliminations << "\n";
-    file << "numVariableSplits" << "," << numVariableSplits << "\n";
-    file << "percentageVariableSplits" << "," << percentageVariableSplits << "\n"; 
+    ofstream file;
+    file.open ("ucppvesolvessat" + input + ".csv");
+        file << "numUnitClausePropagations" << "," << numUnitClausePropagations << "\n";
+        file <<  numPureVariableEliminations;
+        file <<  numVariableSplits;
+        file << percentageVariableSplits; // out of 2^n-1 splits
     file.close();
+
 
     //UCP ONLY
     start = clock();
-    cout << "RESULT OF UCPSOLVESSAT " + name + " " << UCPSOLVESSAT(num) << endl;
+    cout << "RESULT OF UCPSOLVESSAT " << UCPSOLVESSAT() << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
     cout << "Algorithm Running Time with UCP only: " << solutionTime << endl;
 
-    file.open ("ucpsolvessat" + name + ".csv");
-    file << "solutionTime" << "," << solutionTime << "\n";
-    file << "numUnitClausePropagations" << "," << numUnitClausePropagations << "\n";
-    file << "numPureVariableEliminations" << "," << numPureVariableEliminations << "\n";
-    file << "numVariableSplits" << "," << numVariableSplits << "\n";
-    file << "percentageVariableSplits" << "," << percentageVariableSplits << "\n"; 
-    file.close();
-
     //PVE ONLY
     start = clock();
-    cout << "RESULT OF PVESOLVESSAT " + name + " " << PVESOLVESSAT(num) << endl;
+    cout << "RESULT OF PVESOLVESSAT " << PVESOLVESSAT() << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
     cout << "Algorithm Running Time with PVE only : " << solutionTime << endl;
 
-    file.open ("pvesolvessat" + name + ".csv");
-    file << "solutionTime" << "," << solutionTime << "\n";
-    file << "numUnitClausePropagations" << "," << numUnitClausePropagations << "\n";
-    file << "numPureVariableEliminations" << "," << numPureVariableEliminations << "\n";
-    file << "numVariableSplits" << "," << numVariableSplits << "\n";
-    file << "percentageVariableSplits" << "," << percentageVariableSplits << "\n"; 
-    file.close();
-
     //NO PVE OR UCP
     start = clock();
-    cout << "RESULT OF SOLVESSAT " + name + " " << SOLVESSAT(num) << endl;
+    cout << "RESULT OF PVESOLVESSAT " << SOLVESSAT() << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
     cout << "Algorithm Running Time with no UCP or PVE: " << solutionTime << endl;
 
-    file.open ("solvessat" + name + ".csv");
-    file << "solutionTime" << "," << solutionTime << "\n";
-    file << "numUnitClausePropagations" << "," << numUnitClausePropagations << "\n";
-    file << "numPureVariableEliminations" << "," << numPureVariableEliminations << "\n";
-    file << "numVariableSplits" << "," << numVariableSplits << "\n";
-    file << "percentageVariableSplits" << "," << percentageVariableSplits << "\n"; 
-    file.close();
+    return 0;
 }
 
 /***************************************************************************
@@ -253,7 +177,7 @@ void resultsPrint(int num, string name) {
             THE MAIN ALGORITHM IMPLEMENTATION
             clauses, assignment, chance-var-probabilities
  ***************************************************************************/
-double UCPPVESOLVESSAT(int splittingHeuristic){
+double UCPPVESOLVESSAT(){
     if(clauses.empty()){
         return SUCCESS;
     }
@@ -291,7 +215,7 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
             
             updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
-            double probSAT = UCPPVESOLVESSAT(splittingHeuristic);
+            double probSAT = UCPPVESOLVESSAT();
             
             undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
             
@@ -326,7 +250,7 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
 
             updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
-            double probSSAT = UCPPVESOLVESSAT(splittingHeuristic);
+            double probSSAT = UCPPVESOLVESSAT();
 
             undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -337,18 +261,9 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
 
     //BEGIN VARIABLE SPLITS
 
-    switch (splittingHeuristic){
-        case 0: 
-            v = randomSH();
-            break;
-        case 1:
-            v = maximumSH();
-            break;
-        default:
-            v = unassigned_var();
-            break;
-    }
     // v = unassigned_var();
+    // v = randomSH();
+    v = maximumSH();
 
     if (v == INVALID) {
         cout << "The variable is invalid" << endl;
@@ -366,7 +281,7 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    double probSATWithFalse = UCPPVESOLVESSAT(splittingHeuristic);
+    double probSATWithFalse = UCPPVESOLVESSAT();
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -383,7 +298,7 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    double probSATWithTrue = UCPPVESOLVESSAT(splittingHeuristic);
+    double probSATWithTrue = UCPPVESOLVESSAT();
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -406,7 +321,7 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
             THE MAIN ALGORITHM IMPLEMENTATION 
             using ONLY UCP
  ***************************************************************************/
-double UCPSOLVESSAT(int splittingHeuristic){
+double UCPSOLVESSAT(){
     if(clauses.empty()){
         return SUCCESS;
     }
@@ -444,7 +359,7 @@ double UCPSOLVESSAT(int splittingHeuristic){
             
             updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
-            double probSAT = UCPSOLVESSAT(splittingHeuristic);
+            double probSAT = UCPSOLVESSAT();
             
             undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
             
@@ -463,18 +378,9 @@ double UCPSOLVESSAT(int splittingHeuristic){
 
     //BEGIN VARIABLE SPLITS
 
-    switch (splittingHeuristic){
-        case 0: 
-            v = randomSH();
-            break;
-        case 1:
-            v = maximumSH();
-            break;
-        default:
-            v = unassigned_var();
-            break;
-    }
     // v = unassigned_var();
+    // v = randomSH();
+    v = maximumSH();
 
     if (v == INVALID) {
         cout << "The variable is invalid" << endl;
@@ -492,7 +398,7 @@ double UCPSOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    double probSATWithFalse = UCPSOLVESSAT(splittingHeuristic);
+    double probSATWithFalse = UCPSOLVESSAT();
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -509,7 +415,7 @@ double UCPSOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    double probSATWithTrue = UCPSOLVESSAT(splittingHeuristic);
+    double probSATWithTrue = UCPSOLVESSAT();
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -532,7 +438,7 @@ double UCPSOLVESSAT(int splittingHeuristic){
             THE MAIN ALGORITHM IMPLEMENTATION 
             using ONLY UCP
  ***************************************************************************/
-double PVESOLVESSAT(int splittingHeuristic){
+double PVESOLVESSAT(){
     if(clauses.empty()){
         return SUCCESS;
     }
@@ -568,7 +474,7 @@ double PVESOLVESSAT(int splittingHeuristic){
 
             updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
-            double probSSAT = PVESOLVESSAT(splittingHeuristic);
+            double probSSAT = PVESOLVESSAT();
 
             undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -579,18 +485,9 @@ double PVESOLVESSAT(int splittingHeuristic){
 
     //BEGIN VARIABLE SPLITS
 
-    switch (splittingHeuristic){
-        case 0: 
-            v = randomSH();
-            break;
-        case 1:
-            v = maximumSH();
-            break;
-        default:
-            v = unassigned_var();
-            break;
-    }
     // v = unassigned_var();
+    // v = randomSH();
+    v = maximumSH();
 
     if (v == INVALID) {
         cout << "The variable is invalid" << endl;
@@ -608,7 +505,7 @@ double PVESOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    double probSATWithFalse = PVESOLVESSAT(splittingHeuristic);
+    double probSATWithFalse = PVESOLVESSAT();
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -625,7 +522,7 @@ double PVESOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    double probSATWithTrue = PVESOLVESSAT(splittingHeuristic);
+    double probSATWithTrue = PVESOLVESSAT();
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -648,7 +545,7 @@ double PVESOLVESSAT(int splittingHeuristic){
             THE MAIN ALGORITHM IMPLEMENTATION
             clauses, assignment, chance-var-probabilities
  ***************************************************************************/
-double SOLVESSAT(int splittingHeuristic){
+double SOLVESSAT(){
     if(clauses.empty()){
         return SUCCESS;
     }
@@ -668,18 +565,9 @@ double SOLVESSAT(int splittingHeuristic){
 
     //BEGIN VARIABLE SPLITS
 
-    switch (splittingHeuristic){
-        case 0: 
-            v = randomSH();
-            break;
-        case 1:
-            v = maximumSH();
-            break;
-        default:
-            v = unassigned_var();
-            break;
-    }
     // v = unassigned_var();
+    // v = randomSH();
+    v = maximumSH();
 
     if (v == INVALID) {
         cout << "The variable is invalid" << endl;
@@ -697,7 +585,7 @@ double SOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    double probSATWithFalse = SOLVESSAT(splittingHeuristic);
+    double probSATWithFalse = SOLVESSAT();
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -713,7 +601,7 @@ double SOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    double probSATWithTrue = SOLVESSAT(splittingHeuristic);
+    double probSATWithTrue = SOLVESSAT();
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
 
@@ -849,103 +737,6 @@ void undoChanges(int variable, int value, varInfo* savedInfo,
     UNSATclauseExists = false;
 }
 
-/***************************************************************************/
-/* SPLITTING HEURISTICS */
-
-/***************************************************************************
- Function:  undeterminedSH
- Inputs:    none
- Returns:   variable 
- Description:   
- ***************************************************************************/
-// int maximumSH(){
-//     if (variables.empty() == true) {
-//         return INVALID;
-//     }
-
-//     vector <int> temp = helperSH();
-
-//     
-
-//     return 
-// }
-
-/***************************************************************************
- Function:  randomSH
- Inputs:    none
- Returns:   variable
- Description: picks a random variable from the block
- ***************************************************************************/
-int randomSH(){
-    if (variables.empty() == true) {
-        return INVALID;
-    }
-    
-    vector <int> temp = helperSH();
-
-    srand(time(NULL));
-    int randNum = rand() % (temp.size());
-        
-    return temp[randNum];
-}
-
-/***************************************************************************
- Function:  maximumSH
- Inputs:    none
- Returns:   variable 
- Description:   picks the variable that appears in the most clauses
- ***************************************************************************/
-int maximumSH(){
-    if (variables.empty() == true) {
-        return INVALID;
-    }
-
-    vector <int> temp = helperSH();
-
-    int max = INT_MIN;
-    int maxIndex;
-    vector <int>::iterator it;
-    for(it = temp.begin(); it!=temp.end(); it++){
-        if ((int)(variables[(*it)].clauseMembers).size() > max){
-            max = (variables[(*it)].clauseMembers).size();
-            maxIndex = (*it);
-        }
-    }
-
-    return maxIndex;
-}
-
-/***************************************************************************
- Function:  helperSH
- Inputs:    none
- Returns:   vector of same block variables
- Description: determines the variables of the same block  
- ***************************************************************************/
-vector<int> helperSH(){
-    vector <int> temp;
-    double previous;
-    bool started = false;
-
-    map<int, varInfo>::iterator it;
-    for(it = variables.begin(); it!=variables.end(); ++it){
-        if(!started){
-            started = true;
-            previous = (it->second).quantifier;
-            temp.push_back(it->first);
-        }
-        else{
-            if(previous * (it->second).quantifier < 0){
-                break;
-            }
-            else{
-                temp.push_back(it->first);
-                previous = (it->second).quantifier;
-            }
-        }      
-    }
-
-    return temp;
-}
 
 /***************************************************************************/
 /* UTILITY FUNCTIONS */
@@ -1014,14 +805,135 @@ int unassigned_var(){
     return variables.begin()->first;
 }
 
+
 /***************************************************************************/
-/* PRINTING FUNCTIONS */
+/* SPLITTING HEURISTICS */
+
+/***************************************************************************
+ Function:  randomSH
+ Inputs:
+ Returns:   
+ Description:   
+ ***************************************************************************/
+int randomSH(){
+    if (variables.empty() == true) {
+        return INVALID;
+    }
+    
+    vector <int> temp = helperSH();
+
+    srand(time(NULL));
+    // cout << temp.size() << endl;
+    int randNum = rand() % (temp.size());
+    // cout << randNum << " " << temp[randNum] << endl;
+    // cout << "skip" << endl;
+        
+    return temp[randNum];
+}
+
+/***************************************************************************
+ Function:  maximumSH
+ Inputs:
+ Returns:   
+ Description:   
+ ***************************************************************************/
+int maximumSH(){
+    if (variables.empty() == true) {
+        return INVALID;
+    }
+
+    vector <int> temp = helperSH();
+
+    int max = INT_MIN;
+    int maxIndex;
+    vector <int>::iterator it;
+    for(it = temp.begin(); it!=temp.end(); it++){
+            // cout << (variables[(*it)].clauseMembers).size() << endl;
+            // cout<< max << endl;
+        if ((int)(variables[(*it)].clauseMembers).size() > max){
+            // cout << "hello" << endl;
+            max = (variables[(*it)].clauseMembers).size();
+            maxIndex = (*it);
+            // cout << maxIndex << endl;
+        }
+    }
+
+    return maxIndex;
+    // return variables.begin()->first;
+}
+
+/***************************************************************************
+ Function:  
+ Inputs:
+ Returns:   
+ Description:   
+ ***************************************************************************/
+// int maximumSH(){
+//     if (variables.empty() == true) {
+//         return INVALID;
+//     }
+    
+// }
+
+
+/***************************************************************************
+ Function: helperSH
+ Inputs:
+ Returns:   
+ Description:   
+ ***************************************************************************/
+vector<int> helperSH(){
+    vector <int> temp;
+    double previous;
+    bool started = false;
+
+    map<int, varInfo>::iterator it;
+    for(it = variables.begin(); it!=variables.end(); ++it){
+        if(!started){
+            started = true;
+            previous = (it->second).quantifier;
+            temp.push_back(it->first);
+            // cout << " first " << it->first << endl;
+        }
+        else{
+            if(previous * (it->second).quantifier < 0){
+                break;
+            }
+            else{
+                temp.push_back(it->first);
+                // cout << " second "<< it->first << endl;
+                previous = (it->second).quantifier;
+            }
+        }      
+    }
+
+    return temp;
+}
+
+
+/***************************************************************************/
+/* UTILITY FUNCTIONS */
+
+ /***************************************************************************
+ Function:  printBlocks
+ Inputs:    nothing
+ Returns:   nothing
+ Description:   
+ ***************************************************************************/
+void printBlocks() {
+
+    vector <int>:: iterator it;
+    for(it = blocks.begin(); it!=blocks.end(); it++){
+        cout << (*it) << endl;
+    }
+    
+}
 
 /***************************************************************************
  Function:  printClauses
  Inputs:    nothing
  Returns:   nothing
- Description:   prints the clauses
+ Description:   
  ***************************************************************************/
 void printClauses() {
     cout << "printing clauses " << endl;
@@ -1029,7 +941,7 @@ void printClauses() {
     for(it = clauses.begin(); it!=clauses.end(); ++it){
         cout << it->first << ":";
         set<int>::iterator iter;
-
+        
         for(iter = (it->second).begin(); iter!=(it->second).end();++iter){
             cout << " " << (*iter);
         }
@@ -1042,19 +954,19 @@ void printClauses() {
  Function:  printVariables
  Inputs:    nothing
  Returns:   nothing
- Description:   prints the variables
+ Description:   undo changes made before call to SOLVESSAT
  ***************************************************************************/
 void printVariables() {
     
     map<int, varInfo>::iterator it;
-
+    
     cout << "printing variable quantifiers " << endl;
     for(it = variables.begin(); it != variables.end(); it++){
         cout << it->first << " => " << (it->second).quantifier << endl;
     }
     cout << "\n";
     
-    cout << "printing varInfo" << endl; 
+    cout << "printing varInfo" << endl;
     for (it = variables.begin(); it != variables.end(); it++){
         map<int, int>::iterator itClause = (it->second).clauseMembers.begin();
         cout << "Clause Set of variable " << it->first << endl;
@@ -1065,16 +977,13 @@ void printVariables() {
     }
 }
 
-/***************************************************************************/
-/* READING FILE FUNCTIONS */
-
 /***************************************************************************
  Function:  readFile
  Inputs:    file name
  Returns:   nothing
  Description:
-            reads the content of file and stores the information as global
-                variables
+ reads the content of file and stores the information as global
+ variables
  ***************************************************************************/
 void readFile(string input) {
     string sTemp;
@@ -1097,58 +1006,83 @@ void readFile(string input) {
         i--;
     }
     
+    // cout << "first line " << sTemp << endl;
     //the comments
     tokenize(sTemp, vSTemp);
     maximumClauseLength = stoi(vSTemp.back());
-
+    // cout << "maximumClauseLength " << maximumClauseLength << endl;
+    
     getline(inFile, sTemp);
     tokenize(sTemp, vSTemp);
     minimumClauseLength = stoi(vSTemp.back());
-
+    // cout << "minimumClauseLength " << minimumClauseLength << endl;
+    
     getline(inFile, sTemp);
     tokenize(sTemp, vSTemp);
     averageClauseLength = stod(vSTemp.back());
-
+    // cout << "averageClauseLength " <<averageClauseLength << endl;
+    
     getline(inFile, sTemp);
     tokenize(sTemp, vSTemp);
     seed = stoi(vSTemp.back());
-
-    getline(inFile, sTemp); 
+    // cout << "seed " << seed << endl;
+    
+    getline(inFile, sTemp);
     
     //v
     getline(inFile, sTemp);
+    // cout << "v " << sTemp << endl;
     tokenize(sTemp, vSTemp);
     numVars = stoi(vSTemp.back());
-
+    // cout << numVars << endl;
+    
     //c
     getline(inFile, sTemp);
+    // cout << "c " << sTemp << endl;
     vSTemp.clear();
     tokenize(sTemp, vSTemp);
     numClauses = stoi(vSTemp.back());
-
-    getline(inFile, sTemp); 
-    getline(inFile, sTemp); 
-
+    // cout << numClauses << endl;
+    
+    getline(inFile, sTemp);
+    getline(inFile, sTemp);
+    
+    // cout << "vars " << sTemp << endl;
     //variables
     i = numVars;
     unsigned int count = 1;
-    while(i > 0 ){
+    bool switched = false;
+    double previous;
+    while (i > 0){
         getline(inFile, sTemp);
         vSTemp.clear();
         tokenize(sTemp, vSTemp);
-
+        
         varInfo var;
         for(unsigned int b = 0; b <= vSTemp.size(); b++){
             if(b%2 == 1) {
                 var.quantifier = stod(vSTemp.at(b));
                 variables.insert(pair<int, varInfo>(count, var));
+
+                if(!switched) {
+                    blocks.push_back(count);
+                    switched = true;
+                }
+                else {
+                    if(var.quantifier * previous < 0) {
+                        blocks.push_back(count);
+                    }
+
+                }
+
+                previous = var.quantifier;                        
             }
         }
-
+        
         count++;
-        i--;    
+        i--;
     }
-
+    
     getline(inFile, sTemp);
     getline(inFile, sTemp);
     
@@ -1160,7 +1094,7 @@ void readFile(string input) {
         
         for(unsigned int j = 0; j < vSTemp.size(); j++){
             int num = stoi(vSTemp[j].c_str());
-            vITemp.insert(num); 
+            vITemp.insert(num);
             
             if(num > 0){
                 ((variables[abs(num)]).clauseMembers).insert(pair<int, int>(i, POSITIVE));
@@ -1169,13 +1103,15 @@ void readFile(string input) {
                 ((variables[abs(num)]).clauseMembers).insert(pair<int, int>(i, NEGATIVE));
             }
         }
-
+        
         clauses.insert(pair<int, set<int> >(i,vITemp));
         vITemp.clear();
     }
     
     inFile.close();
     cout << "File read successfully" << endl;
+
+    // printBlocks();
 }
 
 /***************************************************************************
@@ -1183,11 +1119,11 @@ void readFile(string input) {
  Inputs:    string and vector
  Returns:   vector
  Description:
-            splits a string by whitespace
+ splits a string by whitespace
  ***************************************************************************/
 void tokenize(string str, vector<string> &token_v){
     size_t start = str.find_first_not_of(' '), end=start;
-
+    
     while(start != string::npos) {
         // Find next occurence of delimiter
         end = str.find(' ', start);
@@ -1199,4 +1135,4 @@ void tokenize(string str, vector<string> &token_v){
 }
 
 
-/****** END OF FILE **********************************************************/
+/****** END OF FILE *********************************************************/
