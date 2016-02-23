@@ -34,6 +34,7 @@ On page 549+, it lists 6 splitting heuristics and their performances
 #include <sstream>
 #include <cstdlib>
 #include <cmath> 
+#include <climits>
 #include <algorithm>
 #include <map>
 #include <set>
@@ -199,7 +200,7 @@ void resultsPrint(int num, string name) {
     cout << "RESULT OF UCPPVESOLVESSAT" + name + " " << UCPPVESOLVESSAT(num) << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    cout << "Algorithm Running Time with UCP & PVE: " + name << solutionTime << endl;
+    cout << "Algorithm Running Time with UCP & PVE: " + name + " " << solutionTime << endl;
 
     file.open ("ucppvesolvessat" + name + ".csv");
     file << "solutionTime" << "," << solutionTime << "\n";
@@ -214,7 +215,7 @@ void resultsPrint(int num, string name) {
     cout << "RESULT OF UCPSOLVESSAT " + name + " " << UCPSOLVESSAT(num) << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    cout << "Algorithm Running Time with UCP only: " << solutionTime << endl;
+    cout << "Algorithm Running Time with UCP only: " + name + " " << solutionTime << endl;
 
     file.open ("ucpsolvessat" + name + ".csv");
     file << "solutionTime" << "," << solutionTime << "\n";
@@ -229,7 +230,7 @@ void resultsPrint(int num, string name) {
     cout << "RESULT OF PVESOLVESSAT " + name + " " << PVESOLVESSAT(num) << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    cout << "Algorithm Running Time with PVE only : " << solutionTime << endl;
+    cout << "Algorithm Running Time with PVE only : " + name + " " << solutionTime << endl;
 
     file.open ("pvesolvessat" + name + ".csv");
     file << "solutionTime" << "," << solutionTime << "\n";
@@ -244,7 +245,7 @@ void resultsPrint(int num, string name) {
     cout << "RESULT OF SOLVESSAT " + name + " " << SOLVESSAT(num) << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    cout << "Algorithm Running Time with no UCP or PVE: " << solutionTime << endl;
+    cout << "Algorithm Running Time with no UCP or PVE: " + name + " " << solutionTime << endl;
 
     file.open ("solvessat" + name + ".csv");
     file << "solutionTime" << "," << solutionTime << "\n";
