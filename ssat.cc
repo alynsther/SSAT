@@ -52,6 +52,11 @@ static const int INVALID = 0;
 static const int UNIT_SIZE = 1;
 static const int FAILURE = 0.0;
 static const int SUCCESS = 1.0;
+static const unsigned int RANDOMVAR = 1;
+static const unsigned int MAXVAR = 2;
+static const unsigned int MINCLAUSE = 3;
+static const unsigned int MAXCLAUSE = 4;
+static const unsigned int PERCENTAGE = 100;
 
 /***************************************************************************/
 /* structs */
@@ -89,7 +94,7 @@ double percentageVariableSplits; // out of 2^n-1 splits
 double SOLVESSAT();
 double UCPSOLVESSAT();
 double PVESOLVESSAT();
-double UCPPVESOLVESSAT(int splittingHeuristic);
+double HEURISTICSOLVESSAT(int splittingHeuristic);
 void readFile(string input);
 void tokenize(string str, vector<string> &token_v);
 pair<bool, int> isPureChoice(int variable);
@@ -109,9 +114,8 @@ void printVariables();
 void printClauses();
 int randomSH();
 int maximumSH();
-//int undeterminedSH();
 vector<int> helperSH();
-void resultsPrint(int num, string name);
+void heuristicsRunAndPrintResult(int num, string name);
 void resetResult();
 int maxClause();
 int minClause();
@@ -132,134 +136,111 @@ int main(int argc, char* argv[]) {
     // double start, end, solutionTime;
     vector <int> splittingHeuristic;
 
-    splittingHeuristic.push_back(-1);   //maxClause
-    splittingHeuristic.push_back(2);    //minClause
-    splittingHeuristic.push_back(0);    //randomVar
-    splittingHeuristic.push_back(1);    //maxVar
-
-    
-    
+    splittingHeuristic.push_back(RANDOMVAR);
+    splittingHeuristic.push_back(MAXVAR); 
+    splittingHeuristic.push_back(MINCLAUSE);
+    splittingHeuristic.push_back(MAXCLAUSE);  
     
     //UCP ONLY
     resetResult();
     start = clock();
-    cout << "RESULT OF UCPSOLVESSAT " << UCPSOLVESSAT() << endl;
+    cout << "====================================================================" << endl;
+    cout << "RESULT OF UCPSOLVESSAT: " << UCPSOLVESSAT() << endl;
     cout << "NUM OF UCP: " << numUCP << endl;
     cout << "NUM OF PVE: " << numPVE << endl;
     cout << "NUM OF VS: " << numVS << endl;
-    cout << "PERCENTAGE OF VS: " << (double)numVS/(double)(pow(2,numVars) - 1) << endl;
+    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/(double)(pow(2,numVars) - 1) << endl;
     end = clock();
-    solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    cout << "Algorithm Running Time with UCP only: " << solutionTime << endl;
+    solutionTime = double(end-start)/(double)CLOCKS_PER_SEC;
+    cout << "SOLUTION TIME: " << solutionTime << endl;
+    cout << "====================================================================" << endl;
     
     //PVE ONLY
     resetResult();
     start = clock();
-    cout << "RESULT OF PVESOLVESSAT " << PVESOLVESSAT() << endl;
+    cout << "====================================================================" << endl;
+    cout << "RESULT OF PVESOLVESSAT: " << PVESOLVESSAT() << endl;
     cout << "NUM OF UCP: " << numUCP << endl;
     cout << "NUM OF PVE: " << numPVE << endl;
     cout << "NUM OF VS: " << numVS << endl;
-    cout << "PERCENTAGE OF VS: " << (double)numVS/(double)(pow(2,numVars) - 1) << endl;
+    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/(double)(pow(2,numVars) - 1) << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    cout << "Algorithm Running Time with PVE only : " << solutionTime << endl;
+    cout << "SOLUTION TIME: " << solutionTime << endl;
+    cout << "====================================================================" << endl;
     
     //NO PVE OR UCP
     resetResult();
     start = clock();
-    cout << "RESULT OF PVESOLVESSAT " << SOLVESSAT() << endl;
+    cout << "====================================================================" << endl;
+    cout << "RESULT OF SOLVESSAT (BOTH UCP & PVE): " << SOLVESSAT() << endl;
     cout << "NUM OF UCP: " << numUCP << endl;
     cout << "NUM OF PVE: " << numPVE << endl;
     cout << "NUM OF VS: " << numVS << endl;
-    cout << "PERCENTAGE OF VS: " << (double)numVS/(double)(pow(2,numVars) - 1) << endl;
+    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/(double)(pow(2,numVars) - 1) << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    cout << "Algorithm Running Time with no UCP or PVE: " << solutionTime << endl;
+    cout << "SOLUTION TIME: " << solutionTime << endl;
+    cout << "====================================================================" << endl;
     
     
     vector <int>::iterator it;
     for(it=splittingHeuristic.begin(); it!= splittingHeuristic.end(); it++) {
         switch ((*it)){
-            case 0:
+            case RANDOMVAR:
                 resetResult();
-                resultsPrint(0, "random");
+                heuristicsRunAndPrintResult(RANDOMVAR, "RANDOMVAR");
                 break;
-            case 1:
+            case MAXVAR:
                 resetResult();
-                resultsPrint(1, "maximum");
+                heuristicsRunAndPrintResult(MAXVAR, "MAXVAR");
                 break;
-            case 2:
+            case MINCLAUSE:
                 resetResult();
-                resultsPrint(2, "minClause");
+                heuristicsRunAndPrintResult(MINCLAUSE, "MINCLAUSE");
                 break;
             default:
                 resetResult();
-                resultsPrint(-1, "maxClause");
+                heuristicsRunAndPrintResult(MAXCLAUSE, "MAXCLAUSE");
                 break;
         }
     }
-    
-    // //UCP & PVE
-    // start = clock();
-    // cout << "RESULT OF UCPPVESOLVESSAT " << UCPPVESOLVESSAT(splittingHeuristic) << endl;
-    // end = clock();
-    // solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    // cout << "Algorithm Running Time with UCP & PVE: " << solutionTime << endl;
-    
-    // //UCP ONLY
-    // start = clock();
-    // cout << "RESULT OF UCPSOLVESSAT " << UCPSOLVESSAT(splittingHeuristic) << endl;
-    // end = clock();
-    // solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    // cout << "Algorithm Running Time with UCP only: " << solutionTime << endl;
-    
-    // //PVE ONLY
-    // start = clock();
-    // cout << "RESULT OF PVESOLVESSAT " << PVESOLVESSAT(splittingHeuristic) << endl;
-    // end = clock();
-    // solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    // cout << "Algorithm Running Time with PVE only : " << solutionTime << endl;
-    
-    // //NO PVE OR UCP
-    // start = clock();
-    // cout << "RESULT OF PVESOLVESSAT " << SOLVESSAT(splittingHeuristic) << endl;
-    // end = clock();
-    // solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    // cout << "Algorithm Running Time with no UCP or PVE: " << solutionTime << endl;
     
     return 0;
 }
 
 /*****************************************************************************
- Function:  resultsPrint
+ Function:  heuristicsRunAndPrintResult
  Inputs:    number and name of splitting heuristic
  Returns:   nothing
  Description:   prints information to terminal and files
  *****************************************************************************/
-void resultsPrint(int num, string name) {
+void heuristicsRunAndPrintResult(int num, string name) {
     double start, end, solutionTime;
     
     //UCP & PVE
     start = clock();
-    cout << "RESULT OF UCPPVESOLVESSAT" + name + " " << UCPPVESOLVESSAT(num) << endl;
+    cout << "====================================================================" << endl;
+    cout << "RESULT OF HEURISTICSOLVESSAT - " + name + " - " << HEURISTICSOLVESSAT(num) << endl;
     cout << "NUM OF UCP: " << numUCP << endl;
     cout << "NUM OF PVE: " << numPVE << endl;
     cout << "NUM OF VS: " << numVS << endl;
-    cout << "PERCENTAGE OF VS: " << (double)numVS/(double)(pow(2,numVars) - 1) << endl;
+    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/(double)(pow(2,numVars) - 1) << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    cout << "Algorithm Running Time with UCP & PVE: " + name + " " << solutionTime << endl;
+    cout << "SOLUTION TIME: " << solutionTime << endl;
+    cout << "====================================================================" << endl;
 }
 
 /***************************************************************************
- Function:  UCPPVESOLVESSAT
+ Function:  HEURISTICSOLVESSAT
  Inputs:    nothing
  Returns:   double
  Description:
  THE MAIN ALGORITHM IMPLEMENTATION
  clauses, assignment, chance-var-probabilities
  ***************************************************************************/
-double UCPPVESOLVESSAT(int splittingHeuristic){
+double HEURISTICSOLVESSAT(int splittingHeuristic){
     if(clauses.empty()){
         return SUCCESS;
     }
@@ -300,7 +281,7 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
             
             updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
             
-            double probSAT = UCPPVESOLVESSAT(splittingHeuristic);
+            double probSAT = HEURISTICSOLVESSAT(splittingHeuristic);
             
             undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
             
@@ -338,7 +319,7 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
             
             updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
             
-            double probSSAT = UCPPVESOLVESSAT(splittingHeuristic);
+            double probSSAT = HEURISTICSOLVESSAT(splittingHeuristic);
             
             undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
             
@@ -349,15 +330,15 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
     
     //BEGIN VARIABLE SPLITS
       switch (splittingHeuristic){
-        case 0:
+        case RANDOMVAR:
             ++numVS;
             v = randomSH();
             break;
-        case 1:
+        case MAXVAR:
             ++numVS;
             v = maximumSH();
             break;
-        case 2:
+        case MINCLAUSE:
             ++numVS;
             v = minClause();
             break;
@@ -384,7 +365,7 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    double probSATWithFalse = UCPPVESOLVESSAT(splittingHeuristic);
+    double probSATWithFalse = HEURISTICSOLVESSAT(splittingHeuristic);
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
@@ -401,7 +382,7 @@ double UCPPVESOLVESSAT(int splittingHeuristic){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    double probSATWithTrue = UCPPVESOLVESSAT(splittingHeuristic);
+    double probSATWithTrue = HEURISTICSOLVESSAT(splittingHeuristic);
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
@@ -668,6 +649,76 @@ double SOLVESSAT(){
     
     int v = 0;
     int value = 0;
+
+    //BEGIN UNIT CLAUSES PROPAGATION
+    for(map<int, set<int> >::iterator it = clauses.begin(); it != clauses.end(); it++){
+        
+        if(it->second.size() == UNIT_SIZE){
+          
+            ++numUCP;
+          
+            value = POSITIVE;
+            set<int>::iterator se = it->second.begin();
+            v = *se;
+            
+            if(v < 0){
+                value = NEGATIVE;
+                v *= NEGATIVE;
+            }
+            
+            assign(v, value);
+            
+            savedInfo.quantifier = variables[v].quantifier;
+            savedInfo.clauseMembers = variables[v].clauseMembers;
+            
+            updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+            
+            double probSAT = SOLVESSAT();
+            
+            undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+            
+            if(variables[v].quantifier == CHOICE_VALUE){
+                return probSAT;
+            }
+            
+            if(value == NEGATIVE){
+                return probSAT * (1 - variables[v].quantifier);
+            }
+            
+            return probSAT * variables[v].quantifier;
+        }
+    }
+    //END UNIT CLAUSES PROPAGATION
+    
+    //BEGIN PURE CHOICE ELIMINATION
+    for (map<int, varInfo>::iterator it = variables.begin(); it != variables.end(); it++){
+        
+        result = isPureChoice(it->first);
+        v = it->first;
+        
+        if(result.first == false) {
+            continue;
+        }
+        else {
+          
+            ++numPVE;
+          
+            savedInfo.quantifier = variables[v].quantifier;
+            savedInfo.clauseMembers = variables[v].clauseMembers;
+            value = result.second;
+            
+            assign(v, value);
+            
+            updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+            
+            double probSSAT = SOLVESSAT();
+            
+            undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+            
+            return probSSAT;
+        }
+    }
+    //END PURE CHOICE ELIMINATION
     
     //BEGIN VARIABLE SPLITS
     
