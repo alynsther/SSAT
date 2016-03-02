@@ -91,6 +91,7 @@ double percentageVariableSplits; // out of 2^n-1 splits
 
 /***************************************************************************/
 /* functions */
+double NAIVESOLVESSAT();
 double SOLVESSAT();
 double UCPSOLVESSAT();
 double PVESOLVESSAT();
@@ -141,6 +142,20 @@ int main(int argc, char* argv[]) {
     splittingHeuristic.push_back(MINCLAUSE);
     splittingHeuristic.push_back(MAXCLAUSE);  
     
+    //NO PVE OR UCP, ONLY IN-ORDER SPLIT
+    resetResult();
+    start = clock();
+    cout << "====================================================================" << endl;
+    cout << "RESULT OF NAIVESOLVESSAT: " << NAIVESOLVESSAT() << endl;
+    cout << "NUM OF UCP: " << numUCP << endl;
+    cout << "NUM OF PVE: " << numPVE << endl;
+    cout << "NUM OF VS: " << numVS << endl;
+    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/(double)(pow(2,numVars) - 1) << endl;
+    end = clock();
+    solutionTime = double(end-start)/CLOCKS_PER_SEC;
+    cout << "SOLUTION TIME: " << solutionTime << endl;
+    cout << "====================================================================" << endl;
+
     //UCP ONLY
     resetResult();
     start = clock();
@@ -169,7 +184,7 @@ int main(int argc, char* argv[]) {
     cout << "SOLUTION TIME: " << solutionTime << endl;
     cout << "====================================================================" << endl;
     
-    //NO PVE OR UCP
+    //BOTH PVE OR UCP, NO HEURISTICS
     resetResult();
     start = clock();
     cout << "====================================================================" << endl;
@@ -759,6 +774,83 @@ double SOLVESSAT(){
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
     double probSATWithTrue = SOLVESSAT();
+    
+    undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+    
+    //end setting v to TRUE
+    
+    if(variables[v].quantifier == CHOICE_VALUE){
+        return max(probSATWithFalse, probSATWithTrue);
+    }
+    
+    return probSATWithFalse * (1 - variables[v].quantifier) + probSATWithTrue * variables[v].quantifier;
+    
+    //END VARIABLE SPLITS
+}
+
+/***************************************************************************
+ Function:  NAIVESOLVESSAT
+ Inputs:    nothing
+ Returns:   double
+ Description:
+ THE MAIN ALGORITHM IMPLEMENTATION
+ clauses, assignment, chance-var-probabilities
+ ***************************************************************************/
+double NAIVESOLVESSAT(){
+    if(clauses.empty()){
+        return SUCCESS;
+    }
+    
+    if (UNSATclauseExists || variables.empty() == true) {
+        return FAILURE;
+    }
+    
+    pair<bool, int> result;
+    varInfo savedInfo;
+    map<int, set <int> > savedSATClauses;
+    vector<int> savedFalseLiteralClause;
+    map<int, double> savedInactiveVariables;
+    
+    int v = 0;
+    int value = 0;
+    
+    ++numVS;
+    
+    v = unassigned_var();
+    
+    if (v == INVALID) {
+        cout << "The variable is invalid" << endl;
+        return FAILURE;
+    }
+    
+    //try setting v to FALSE
+    
+    assign(v, NEGATIVE);
+    value = NEGATIVE;
+    
+    
+    savedInfo.quantifier = variables[v].quantifier;
+    savedInfo.clauseMembers = variables[v].clauseMembers;
+    
+    updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+    
+    double probSATWithFalse = NAIVESOLVESSAT();
+    
+    undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+    
+    //end setting v to FALSE
+    
+    //try setting v to TRUE
+    
+    assign(v, POSITIVE);
+    value = POSITIVE;
+    
+    savedInfo.quantifier = variables[v].quantifier;
+    savedInfo.clauseMembers = variables[v].clauseMembers;
+    
+    updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+    
+    double probSATWithTrue = NAIVESOLVESSAT();
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
