@@ -45,7 +45,6 @@ using namespace std;
 /***************************************************************************/
 /* constants */
 static const double CHOICE_VALUE = -1.0;
-static const double SATISFIED = 1.0;
 static const int POSITIVE = 1;
 static const int NEGATIVE = -1;
 static const int INVALID = 0;
@@ -74,20 +73,17 @@ double averageClauseLength;
 int seed;
 int numVars;
 int numClauses;
-
-map <int, varInfo> variables; //starts index at 1
-map <int, set<int> > clauses; //startes index at 0
-map <int, int> assignment;
-
-bool UNSATclauseExists = false;
-bool headHasValue = false;
-
-//A: we also have to record the following for every run
-//S: what do we need this for?????
 int numUCP;
 int numPVE;
 int numVS;
-double percentageVariableSplits; // out of 2^n-1 splits
+double allPossibleSplits;
+double percentageVariableSplits;
+
+map <int, varInfo> variables; //starts index at 1
+map <int, set<int> > clauses; //startes index at 0
+
+bool UNSATclauseExists = false;
+bool headHasValue = false;
 
 /***************************************************************************/
 /* functions */
@@ -142,6 +138,8 @@ int main(int argc, char* argv[]) {
     splittingHeuristic.push_back(MINCLAUSE);
     splittingHeuristic.push_back(MAXCLAUSE);  
     
+    allPossibleSplits = pow(2,numVars) - 1;
+
     //NO PVE OR UCP, ONLY IN-ORDER SPLIT
     resetResult();
     start = clock();
@@ -150,7 +148,7 @@ int main(int argc, char* argv[]) {
     cout << "NUM OF UCP: " << numUCP << endl;
     cout << "NUM OF PVE: " << numPVE << endl;
     cout << "NUM OF VS: " << numVS << endl;
-    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/(double)(pow(2,numVars) - 1) << endl;
+    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/allPossibleSplits << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
     cout << "SOLUTION TIME: " << solutionTime << endl;
@@ -164,7 +162,7 @@ int main(int argc, char* argv[]) {
     cout << "NUM OF UCP: " << numUCP << endl;
     cout << "NUM OF PVE: " << numPVE << endl;
     cout << "NUM OF VS: " << numVS << endl;
-    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/(double)(pow(2,numVars) - 1) << endl;
+    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/allPossibleSplits << endl;
     end = clock();
     solutionTime = double(end-start)/(double)CLOCKS_PER_SEC;
     cout << "SOLUTION TIME: " << solutionTime << endl;
@@ -178,7 +176,7 @@ int main(int argc, char* argv[]) {
     cout << "NUM OF UCP: " << numUCP << endl;
     cout << "NUM OF PVE: " << numPVE << endl;
     cout << "NUM OF VS: " << numVS << endl;
-    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/(double)(pow(2,numVars) - 1) << endl;
+    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/allPossibleSplits << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
     cout << "SOLUTION TIME: " << solutionTime << endl;
@@ -192,7 +190,7 @@ int main(int argc, char* argv[]) {
     cout << "NUM OF UCP: " << numUCP << endl;
     cout << "NUM OF PVE: " << numPVE << endl;
     cout << "NUM OF VS: " << numVS << endl;
-    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/(double)(pow(2,numVars) - 1) << endl;
+    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/allPossibleSplits << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
     cout << "SOLUTION TIME: " << solutionTime << endl;
@@ -201,21 +199,18 @@ int main(int argc, char* argv[]) {
     
     vector <int>::iterator it;
     for(it=splittingHeuristic.begin(); it!= splittingHeuristic.end(); it++) {
+        resetResult();
         switch ((*it)){
             case RANDOMVAR:
-                resetResult();
                 heuristicsRunAndPrintResult(RANDOMVAR, "RANDOMVAR");
                 break;
             case MAXVAR:
-                resetResult();
                 heuristicsRunAndPrintResult(MAXVAR, "MAXVAR");
                 break;
             case MINCLAUSE:
-                resetResult();
                 heuristicsRunAndPrintResult(MINCLAUSE, "MINCLAUSE");
                 break;
             default:
-                resetResult();
                 heuristicsRunAndPrintResult(MAXCLAUSE, "MAXCLAUSE");
                 break;
         }
@@ -240,7 +235,7 @@ void heuristicsRunAndPrintResult(int num, string name) {
     cout << "NUM OF UCP: " << numUCP << endl;
     cout << "NUM OF PVE: " << numPVE << endl;
     cout << "NUM OF VS: " << numVS << endl;
-    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/(double)(pow(2,numVars) - 1) << endl;
+    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/allPossibleSplits << endl;
     end = clock();
     solutionTime = double(end-start)/CLOCKS_PER_SEC;
     cout << "SOLUTION TIME: " << solutionTime << endl;
@@ -289,8 +284,6 @@ double HEURISTICSOLVESSAT(int splittingHeuristic){
                 v *= NEGATIVE;
             }
             
-            assign(v, value);
-            
             savedInfo.quantifier = variables[v].quantifier;
             savedInfo.clauseMembers = variables[v].clauseMembers;
             
@@ -330,8 +323,6 @@ double HEURISTICSOLVESSAT(int splittingHeuristic){
             savedInfo.clauseMembers = variables[v].clauseMembers;
             value = result.second;
             
-            assign(v, value);
-            
             updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
             
             double probSSAT = HEURISTICSOLVESSAT(splittingHeuristic);
@@ -370,8 +361,7 @@ double HEURISTICSOLVESSAT(int splittingHeuristic){
     }
     
     //try setting v to FALSE
-    
-    assign(v, NEGATIVE);
+
     value = NEGATIVE;
     
     
@@ -388,8 +378,7 @@ double HEURISTICSOLVESSAT(int splittingHeuristic){
     
     
     //try setting v to TRUE
-    
-    assign(v, POSITIVE);
+
     value = POSITIVE;
     
     savedInfo.quantifier = variables[v].quantifier;
@@ -454,8 +443,6 @@ double UCPSOLVESSAT(){
                 v *= NEGATIVE;
             }
             
-            assign(v, value);
-            
             savedInfo.quantifier = variables[v].quantifier;
             savedInfo.clauseMembers = variables[v].clauseMembers;
             
@@ -490,10 +477,7 @@ double UCPSOLVESSAT(){
     }
     
     //try setting v to FALSE
-    
-    assign(v, NEGATIVE);
     value = NEGATIVE;
-    
     
     savedInfo.quantifier = variables[v].quantifier;
     savedInfo.clauseMembers = variables[v].clauseMembers;
@@ -507,8 +491,7 @@ double UCPSOLVESSAT(){
     //end setting v to FALSE
     
     //try setting v to TRUE
-    
-    assign(v, POSITIVE);
+
     value = POSITIVE;
     
     savedInfo.quantifier = variables[v].quantifier;
@@ -572,8 +555,6 @@ double PVESOLVESSAT(){
             savedInfo.clauseMembers = variables[v].clauseMembers;
             value = result.second;
             
-            assign(v, value);
-            
             updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
             
             double probSSAT = PVESOLVESSAT();
@@ -598,9 +579,7 @@ double PVESOLVESSAT(){
     
     //try setting v to FALSE
     
-    assign(v, NEGATIVE);
     value = NEGATIVE;
-    
     
     savedInfo.quantifier = variables[v].quantifier;
     savedInfo.clauseMembers = variables[v].clauseMembers;
@@ -615,8 +594,7 @@ double PVESOLVESSAT(){
     
     
     //try setting v to TRUE
-    
-    assign(v, POSITIVE);
+
     value = POSITIVE;
     
     savedInfo.quantifier = variables[v].quantifier;
@@ -681,8 +659,6 @@ double SOLVESSAT(){
                 v *= NEGATIVE;
             }
             
-            assign(v, value);
-            
             savedInfo.quantifier = variables[v].quantifier;
             savedInfo.clauseMembers = variables[v].clauseMembers;
             
@@ -722,8 +698,6 @@ double SOLVESSAT(){
             savedInfo.clauseMembers = variables[v].clauseMembers;
             value = result.second;
             
-            assign(v, value);
-            
             updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
             
             double probSSAT = SOLVESSAT();
@@ -748,7 +722,6 @@ double SOLVESSAT(){
     
     //try setting v to FALSE
     
-    assign(v, NEGATIVE);
     value = NEGATIVE;
     
     
@@ -765,7 +738,6 @@ double SOLVESSAT(){
     
     //try setting v to TRUE
     
-    assign(v, POSITIVE);
     value = POSITIVE;
     
     savedInfo.quantifier = variables[v].quantifier;
@@ -824,8 +796,7 @@ double NAIVESOLVESSAT(){
     }
     
     //try setting v to FALSE
-    
-    assign(v, NEGATIVE);
+
     value = NEGATIVE;
     
     
@@ -841,8 +812,7 @@ double NAIVESOLVESSAT(){
     //end setting v to FALSE
     
     //try setting v to TRUE
-    
-    assign(v, POSITIVE);
+
     value = POSITIVE;
     
     savedInfo.quantifier = variables[v].quantifier;
@@ -988,24 +958,6 @@ void undoChanges(int variable, int value, varInfo* savedInfo,
 
 /***************************************************************************/
 /* SPLITTING HEURISTICS */
-
-/***************************************************************************
- Function:  undeterminedSH
- Inputs:    none
- Returns:   variable
- Description:
- ***************************************************************************/
-// int maximumSH(){
-//     if (variables.empty() == true) {
-//         return INVALID;
-//     }
-
-//     vector <int> temp = helperSH();
-
-//
-
-//     return
-// }
 
 /***************************************************************************
  Function:  randomSH
@@ -1194,16 +1146,6 @@ pair<bool, int> isPureChoice(int variable) {
  ***************************************************************************/
 int variableSignInClause(int clauseEntry, int variable) {
     return variables[variable].clauseMembers[clauseEntry];
-}
-
-/***************************************************************************
- Function:  assign
- Inputs:    int
- Returns:   int (positive or negative)
- Description:   indicates the sign of a variable within a given clause
- ***************************************************************************/
-void assign(int variable, int value) {
-    assignment[variable] = value * variable;
 }
 
 /***************************************************************************

@@ -19,9 +19,6 @@
 #include <cstring>
 #include <map>
 
-//A
-#include <sstream>
-
 using namespace std;
 
 //  Defines
@@ -92,13 +89,7 @@ long floorlg (long n);
 
 // main function
 
-//A
-ofstream file;
-
-
 int main(int argc, char *argv[]) {
-
-	file.open("temp.ssat");
 
 	// make sure all arguments are present
 	if (argc < NUM_BASIC_ARGS) {
@@ -165,34 +156,20 @@ int main(int argc, char *argv[]) {
 	// generate the SSAT formula
 	double average_clause_length = make_ssat(seed);
 
-	file << endl;
-	file << ";  command               = ";
-	for (int a = 0 ; a < argc ; a++)
-		file << argv[a] << " ";
-	file << endl;
-	file << ";  number of variables   = " << numvars << endl;
-	file << ";  number of clauses     = " << numclauses << endl;
-	file << ";  maximum clause length = " << max_clause_length << endl;
-	file << ";  minimum clause length = " << min_clause_length << endl;
-	file << ";  average clause length = " << average_clause_length << endl;
-	file << ";  seed                  = " << seed << endl << endl;
-	file << "v " << numvars << endl;
-	file << "c " << numclauses << endl << endl;
-
 	// print out encoding statistics
-	// cout << endl;
-	// cout << ";  command               = ";
-	// for (int a = 0 ; a < argc ; a++)
-	// 	cout << argv[a] << " ";
-	// cout << endl;
-	// cout << ";  number of variables   = " << numvars << endl;
-	// cout << ";  number of clauses     = " << numclauses << endl;
-	// cout << ";  maximum clause length = " << max_clause_length << endl;
-	// cout << ";  minimum clause length = " << min_clause_length << endl;
-	// cout << ";  average clause length = " << average_clause_length << endl;
-	// cout << ";  seed                  = " << seed << endl << endl;
-	// cout << "v " << numvars << endl;
-	// cout << "c " << numclauses << endl << endl;
+	cout << endl;
+	cout << ";  command               = ";
+	for (int a = 0 ; a < argc ; a++)
+		cout << argv[a] << " ";
+	cout << endl;
+	cout << ";  number of variables   = " << numvars << endl;
+	cout << ";  number of clauses     = " << numclauses << endl;
+	cout << ";  maximum clause length = " << max_clause_length << endl;
+	cout << ";  minimum clause length = " << min_clause_length << endl;
+	cout << ";  average clause length = " << average_clause_length << endl;
+	cout << ";  seed                  = " << seed << endl << endl;
+	cout << "v " << numvars << endl;
+	cout << "c " << numclauses << endl << endl;
 
 	print_ssat_numbers();
 
@@ -214,13 +191,11 @@ int main(int argc, char *argv[]) {
 	// stop the clock
 	clock_t tv_end = clock();
 
-	file << endl << "Success Probability:  " << optimal_prob/UNDERFLOW_FACTOR << endl;
+	cout << endl << "Success Probability:  " << optimal_prob/UNDERFLOW_FACTOR << endl;
 
 	// print out solution time
 	double time_total = (tv_end - tv_start)/(double)CLOCKS_PER_SEC;
-	file << "Solution Time (CPU secs):  " << time_total << endl << endl;
-
-	file.close();
+	cout << "Solution Time (CPU secs):  " << time_total << endl << endl;
 
 }
 
@@ -408,30 +383,30 @@ long set_stats() {
 
 void print_ssat_numbers() {
 
-	file << "variables" << endl;
+	cout << "variables" << endl;
 	//	cout << "# ---------" << endl;
 	for (long v = 1 ; v <= numvars ; v++) {
-		file << setw(VARWIDTH) << v;
+		cout << setw(VARWIDTH) << v;
 		if (chancevarprob[v] == CHOICEVAR)
-			file << "   -1.0";
+			cout << "   -1.0";
 		else
-			file << "   " << chancevarprob[v];
-		file << endl;
+			cout << "   " << chancevarprob[v];
+		cout << endl;
 	}
 
-	file << endl << "clauses" << endl;
+	cout << endl << "clauses" << endl;
 	//	cout << "# -------" << endl;
 	for (long c = 0 ; c < numclauses ; c++) {
 		//    cout << setw(VARWIDTH) << c+1 << " (";
 		for (long l = 0 ; l < lic[c] ; l++) {
 			if (sgn[c][l] == NOTNEGATED)
-				file << setw(VARWIDTH) << form[c][l];
+				cout << setw(VARWIDTH) << form[c][l];
 			else
-				file << setw(VARWIDTH) << -form[c][l];
+				cout << setw(VARWIDTH) << -form[c][l];
 		}
 		//    cout << "  )";
-		file << setw(VARWIDTH) << 0;
-		file << endl;
+		cout << setw(VARWIDTH) << 0;
+		cout << endl;
 	}
 
 }
@@ -439,21 +414,21 @@ void print_ssat_numbers() {
 
 void print_clause(long c) {
 
-	file << "( ";
+	cout << "( ";
 	for (long l = 0; l < lic[c]; l++) {
 		if (sgn[c][l] == NEGATED)
-			file << "-";
+			cout << "-";
 		//    cout << names[v] << "[";
 		if (assgn[form[c][l]] == UNASSIGNED)
-			file << "U] ";
+			cout << "U] ";
 		else if (assgn[form[c][l]] == TRUE)
-			file << "T] ";
+			cout << "T] ";
 		else if (assgn[form[c][l]] == FALSE)
-			file << "F] ";
+			cout << "F] ";
 		else
-			file << "!!] ";
+			cout << "!!] ";
 	}
-	file << ")" << endl;
+	cout << ")" << endl;
 }
 
 
