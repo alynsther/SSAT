@@ -1,4 +1,4 @@
-/*****************************************************************************
+    /*****************************************************************************
  File:   ssat.cc
  Author: Adela Yang, Venecia Xu, Son Ngo
  Date:   February 2016
@@ -51,10 +51,15 @@ static const int INVALID = 0;
 static const int UNIT_SIZE = 1;
 static const int FAILURE = 0.0;
 static const int SUCCESS = 1.0;
-static const unsigned int RANDOMVAR = 1;
-static const unsigned int MAXVAR = 2;
-static const unsigned int MINCLAUSE = 3;
-static const unsigned int MAXCLAUSE = 4;
+
+static const unsigned int NAIVE = 0;
+static const unsigned int UCPONLY = 1;
+static const unsigned int PVEONLY = 2;
+static const unsigned int UCPPVE = 3;
+static const unsigned int RANDOMVAR = 4;
+static const unsigned int MAXVAR = 5;
+static const unsigned int MINCLAUSE = 6;
+static const unsigned int MAXCLAUSE = 7;
 static const unsigned int PERCENTAGE = 100;
 
 /***************************************************************************/
@@ -76,7 +81,6 @@ int numClauses;
 int numUCP;
 int numPVE;
 int numVS;
-double allPossibleSplits;
 double percentageVariableSplits;
 
 map <int, varInfo> variables; //starts index at 1
@@ -87,11 +91,7 @@ bool headHasValue = false;
 
 /***************************************************************************/
 /* functions */
-double NAIVESOLVESSAT();
-double SOLVESSAT();
-double UCPSOLVESSAT();
-double PVESOLVESSAT();
-double HEURISTICSOLVESSAT(int splittingHeuristic);
+double SOLVESSAT(int algorithm);
 void readFile(string input);
 void tokenize(string str, vector<string> &token_v);
 pair<bool, int> isPureChoice(int variable);
@@ -112,7 +112,7 @@ void printClauses();
 int randomSH();
 int maximumSH();
 vector<int> helperSH();
-void heuristicsRunAndPrintResult(int num, string name);
+void runAndPrintResult(int num, string name);
 void resetResult();
 int maxClause();
 int minClause();
@@ -128,110 +128,31 @@ int smallestClause(int variable);
 int main(int argc, char* argv[]) {
     //open the file for reading
     string input = argv[1];
-    double start, end, solutionTime;
     readFile(input);
-    // double start, end, solutionTime;
-    vector <int> splittingHeuristic;
 
-    splittingHeuristic.push_back(RANDOMVAR);
-    splittingHeuristic.push_back(MAXVAR); 
-    splittingHeuristic.push_back(MINCLAUSE);
-    splittingHeuristic.push_back(MAXCLAUSE);  
+    string names[] = {"NAIVE", "UCPONLY", "PVEONLY", "UCPPVE", "RANDOMVAR", "MAXVAR", "MINCLAUSE", "MAXCLAUSE"};
     
-    allPossibleSplits = pow(2,numVars) - 1;
-
-    //NO PVE OR UCP, ONLY IN-ORDER SPLIT
-    resetResult();
-    start = clock();
-    cout << "====================================================================" << endl;
-    cout << "RESULT OF NAIVESOLVESSAT: " << NAIVESOLVESSAT() << endl;
-    cout << "NUM OF UCP: " << numUCP << endl;
-    cout << "NUM OF PVE: " << numPVE << endl;
-    cout << "NUM OF VS: " << numVS << endl;
-    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/allPossibleSplits << endl;
-    end = clock();
-    solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    cout << "SOLUTION TIME: " << solutionTime << endl;
-    cout << "====================================================================" << endl;
-
-    //UCP ONLY
-    resetResult();
-    start = clock();
-    cout << "====================================================================" << endl;
-    cout << "RESULT OF UCPSOLVESSAT: " << UCPSOLVESSAT() << endl;
-    cout << "NUM OF UCP: " << numUCP << endl;
-    cout << "NUM OF PVE: " << numPVE << endl;
-    cout << "NUM OF VS: " << numVS << endl;
-    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/allPossibleSplits << endl;
-    end = clock();
-    solutionTime = double(end-start)/(double)CLOCKS_PER_SEC;
-    cout << "SOLUTION TIME: " << solutionTime << endl;
-    cout << "====================================================================" << endl;
-    
-    //PVE ONLY
-    resetResult();
-    start = clock();
-    cout << "====================================================================" << endl;
-    cout << "RESULT OF PVESOLVESSAT: " << PVESOLVESSAT() << endl;
-    cout << "NUM OF UCP: " << numUCP << endl;
-    cout << "NUM OF PVE: " << numPVE << endl;
-    cout << "NUM OF VS: " << numVS << endl;
-    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/allPossibleSplits << endl;
-    end = clock();
-    solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    cout << "SOLUTION TIME: " << solutionTime << endl;
-    cout << "====================================================================" << endl;
-    
-    //BOTH PVE OR UCP, NO HEURISTICS
-    resetResult();
-    start = clock();
-    cout << "====================================================================" << endl;
-    cout << "RESULT OF SOLVESSAT (BOTH UCP & PVE): " << SOLVESSAT() << endl;
-    cout << "NUM OF UCP: " << numUCP << endl;
-    cout << "NUM OF PVE: " << numPVE << endl;
-    cout << "NUM OF VS: " << numVS << endl;
-    cout << "PERCENTAGE OF VS: " << PERCENTAGE * (double)numVS/allPossibleSplits << endl;
-    end = clock();
-    solutionTime = double(end-start)/CLOCKS_PER_SEC;
-    cout << "SOLUTION TIME: " << solutionTime << endl;
-    cout << "====================================================================" << endl;
-    
-    
-    vector <int>::iterator it;
-    for(it=splittingHeuristic.begin(); it!= splittingHeuristic.end(); it++) {
+    for(int i = NAIVE; i <= MAXCLAUSE; i++) {
         resetResult();
-        switch ((*it)){
-            case RANDOMVAR:
-                heuristicsRunAndPrintResult(RANDOMVAR, "RANDOMVAR");
-                break;
-            case MAXVAR:
-                heuristicsRunAndPrintResult(MAXVAR, "MAXVAR");
-                break;
-            case MINCLAUSE:
-                heuristicsRunAndPrintResult(MINCLAUSE, "MINCLAUSE");
-                break;
-            default:
-                heuristicsRunAndPrintResult(MAXCLAUSE, "MAXCLAUSE");
-                break;
-        }
+        runAndPrintResult(i, names[i]);
     }
     
     return 0;
 }
 
 /*****************************************************************************
- Function:  heuristicsRunAndPrintResult
- Inputs:    number and name of splitting heuristic
+ Function:  runAndPrintResult
+ Inputs:    number and name of algorithm being run
  Returns:   nothing
  Description:   prints information to terminal and files
  *****************************************************************************/
-void heuristicsRunAndPrintResult(int num, string name) {
+void runAndPrintResult(int num, string name) {
     double start, end, solutionTime;
+    double allPossibleSplits = pow(2,numVars) - 1;
     
-    //UCP & PVE
     start = clock();
     cout << "====================================================================" << endl;
-    cout << "RESULT OF HEURISTICSOLVESSAT - " + name + " - " << HEURISTICSOLVESSAT(num) << endl;
+    cout << "RESULT OF SOLVESSAT - " + name + ": " << SOLVESSAT(num) << endl;
     cout << "NUM OF UCP: " << numUCP << endl;
     cout << "NUM OF PVE: " << numPVE << endl;
     cout << "NUM OF VS: " << numVS << endl;
@@ -243,389 +164,14 @@ void heuristicsRunAndPrintResult(int num, string name) {
 }
 
 /***************************************************************************
- Function:  HEURISTICSOLVESSAT
- Inputs:    nothing
- Returns:   double
- Description:
- THE MAIN ALGORITHM IMPLEMENTATION
- clauses, assignment, chance-var-probabilities
- ***************************************************************************/
-double HEURISTICSOLVESSAT(int splittingHeuristic){
-    if(clauses.empty()){
-        return SUCCESS;
-    }
-    
-    if (UNSATclauseExists || variables.empty() == true) {
-        return FAILURE;
-    }
-    
-    pair<bool, int> result;
-    varInfo savedInfo;
-    map<int, set <int> > savedSATClauses;
-    vector<int> savedFalseLiteralClause;
-    map<int, double> savedInactiveVariables;
-    
-    int v = 0;
-    int value = 0;
-    
-    //BEGIN UNIT CLAUSES PROPAGATION
-    for(map<int, set<int> >::iterator it = clauses.begin(); it != clauses.end(); it++){
-        
-        if(it->second.size() == UNIT_SIZE){
-          
-            ++numUCP;
-          
-            value = POSITIVE;
-            set<int>::iterator se = it->second.begin();
-            v = *se;
-            
-            if(v < 0){
-                value = NEGATIVE;
-                v *= NEGATIVE;
-            }
-            
-            savedInfo.quantifier = variables[v].quantifier;
-            savedInfo.clauseMembers = variables[v].clauseMembers;
-            
-            updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-            
-            double probSAT = HEURISTICSOLVESSAT(splittingHeuristic);
-            
-            undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-            
-            if(variables[v].quantifier == CHOICE_VALUE){
-                return probSAT;
-            }
-            
-            if(value == NEGATIVE){
-                return probSAT * (1 - variables[v].quantifier);
-            }
-            
-            return probSAT * variables[v].quantifier;
-        }
-    }
-    //END UNIT CLAUSES PROPAGATION
-    
-    //BEGIN PURE CHOICE ELIMINATION
-    for (map<int, varInfo>::iterator it = variables.begin(); it != variables.end(); it++){
-        
-        result = isPureChoice(it->first);
-        v = it->first;
-        
-        if(result.first == false) {
-            continue;
-        }
-        else {
-          
-            ++numPVE;
-          
-            savedInfo.quantifier = variables[v].quantifier;
-            savedInfo.clauseMembers = variables[v].clauseMembers;
-            value = result.second;
-            
-            updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-            
-            double probSSAT = HEURISTICSOLVESSAT(splittingHeuristic);
-            
-            undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-            
-            return probSSAT;
-        }
-    }
-    //END PURE CHOICE ELIMINATION
-    
-    //BEGIN VARIABLE SPLITS
-      switch (splittingHeuristic){
-        case RANDOMVAR:
-            ++numVS;
-            v = randomSH();
-            break;
-        case MAXVAR:
-            ++numVS;
-            v = maximumSH();
-            break;
-        case MINCLAUSE:
-            ++numVS;
-            v = minClause();
-            break;
-        default:
-            ++numVS;
-            v = maxClause();
-            break;
-    }
-    //v = unassigned_var();
-    
-    if (v == INVALID) {
-        cout << "The variable is invalid" << endl;
-        return FAILURE;
-    }
-    
-    //try setting v to FALSE
-
-    value = NEGATIVE;
-    
-    
-    savedInfo.quantifier = variables[v].quantifier;
-    savedInfo.clauseMembers = variables[v].clauseMembers;
-    
-    updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    double probSATWithFalse = HEURISTICSOLVESSAT(splittingHeuristic);
-    
-    undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    //end setting v to FALSE
-    
-    
-    //try setting v to TRUE
-
-    value = POSITIVE;
-    
-    savedInfo.quantifier = variables[v].quantifier;
-    savedInfo.clauseMembers = variables[v].clauseMembers;
-    
-    updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    double probSATWithTrue = HEURISTICSOLVESSAT(splittingHeuristic);
-    
-    undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    //end setting v to TRUE
-    
-    if(variables[v].quantifier == CHOICE_VALUE){
-        return max(probSATWithFalse, probSATWithTrue);
-    }
-    
-    return probSATWithFalse * (1 - variables[v].quantifier) + probSATWithTrue * variables[v].quantifier;
-    
-    //END VARIABLE SPLITS
-}
-
-/***************************************************************************
- Function:  UCPSOLVESSAT
- Inputs:    nothing
- Returns:   double
- Description:
- THE MAIN ALGORITHM IMPLEMENTATION
- using ONLY UCP
- ***************************************************************************/
-double UCPSOLVESSAT(){
-    if(clauses.empty()){
-        return SUCCESS;
-    }
-    
-    if (UNSATclauseExists || variables.empty() == true) {
-        return FAILURE;
-    }
-    
-    pair<bool, int> result;
-    varInfo savedInfo;
-    map<int, set <int> > savedSATClauses;
-    vector<int> savedFalseLiteralClause;
-    map<int, double> savedInactiveVariables;
-    
-    int v = 0;
-    int value = 0;
-    
-    //BEGIN UNIT CLAUSES PROPAGATION
-    for(map<int, set<int> >::iterator it = clauses.begin(); it != clauses.end(); it++){
-        
-        if(it->second.size() == UNIT_SIZE){
-            
-            ++numUCP;
-            
-            value = POSITIVE;
-            set<int>::iterator se = it->second.begin();
-            v = *se;
-            
-            if(v < 0){
-                value = NEGATIVE;
-                v *= NEGATIVE;
-            }
-            
-            savedInfo.quantifier = variables[v].quantifier;
-            savedInfo.clauseMembers = variables[v].clauseMembers;
-            
-            updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-            
-            double probSAT = UCPSOLVESSAT();
-            
-            undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-            
-            if(variables[v].quantifier == CHOICE_VALUE){
-                return probSAT;
-            }
-            
-            if(value == NEGATIVE){
-                return probSAT * (1 - variables[v].quantifier);
-            }
-            
-            return probSAT * variables[v].quantifier;
-        }
-    }
-    //END UNIT CLAUSES PROPAGATION
-    
-    //BEGIN VARIABLE SPLITS
-    
-    ++numVS;
-    
-    v = unassigned_var();
-    
-    if (v == INVALID) {
-        cout << "The variable is invalid" << endl;
-        return FAILURE;
-    }
-    
-    //try setting v to FALSE
-    value = NEGATIVE;
-    
-    savedInfo.quantifier = variables[v].quantifier;
-    savedInfo.clauseMembers = variables[v].clauseMembers;
-    
-    updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    double probSATWithFalse = UCPSOLVESSAT();
-    
-    undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    //end setting v to FALSE
-    
-    //try setting v to TRUE
-
-    value = POSITIVE;
-    
-    savedInfo.quantifier = variables[v].quantifier;
-    savedInfo.clauseMembers = variables[v].clauseMembers;
-    
-    updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    double probSATWithTrue = UCPSOLVESSAT();
-    
-    undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    //end setting v to TRUE
-    
-    if(variables[v].quantifier == CHOICE_VALUE){
-        return max(probSATWithFalse, probSATWithTrue);
-    }
-    
-    return probSATWithFalse * (1 - variables[v].quantifier) + probSATWithTrue * variables[v].quantifier;
-    
-    //END VARIABLE SPLITS
-}
-
-/***************************************************************************
- Function:  PVESOLVESSAT
- Inputs:    nothing
- Returns:   double
- Description:
- THE MAIN ALGORITHM IMPLEMENTATION
- using ONLY UCP
- ***************************************************************************/
-double PVESOLVESSAT(){
-    if(clauses.empty()){
-        return SUCCESS;
-    }
-    
-    if (UNSATclauseExists || variables.empty() == true) {
-        return FAILURE;
-    }
-    
-    pair<bool, int> result;
-    varInfo savedInfo;
-    map<int, set <int> > savedSATClauses;
-    vector<int> savedFalseLiteralClause;
-    map<int, double> savedInactiveVariables;
-    
-    int v = 0;
-    int value = 0;
-    
-    //BEGIN PURE CHOICE ELIMINATION
-    for (map<int, varInfo>::iterator it = variables.begin(); it != variables.end(); it++){
-        
-        result = isPureChoice(it->first);
-        v = it->first;
-        
-        if(result.first == false) {
-            continue;
-        }
-        else {
-            numPVE++;
-            savedInfo.quantifier = variables[v].quantifier;
-            savedInfo.clauseMembers = variables[v].clauseMembers;
-            value = result.second;
-            
-            updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-            
-            double probSSAT = PVESOLVESSAT();
-            
-            undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-            
-            return probSSAT;
-        }
-    }
-    //END PURE CHOICE ELIMINATION
-    
-    //BEGIN VARIABLE SPLITS
-    
-    ++numVS;
-    
-    v = unassigned_var();
-    
-    if (v == INVALID) {
-        cout << "The variable is invalid" << endl;
-        return FAILURE;
-    }
-    
-    //try setting v to FALSE
-    
-    value = NEGATIVE;
-    
-    savedInfo.quantifier = variables[v].quantifier;
-    savedInfo.clauseMembers = variables[v].clauseMembers;
-    
-    updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    double probSATWithFalse = PVESOLVESSAT();
-    
-    undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    //end setting v to FALSE
-    
-    
-    //try setting v to TRUE
-
-    value = POSITIVE;
-    
-    savedInfo.quantifier = variables[v].quantifier;
-    savedInfo.clauseMembers = variables[v].clauseMembers;
-    
-    updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    double probSATWithTrue = PVESOLVESSAT();
-    
-    undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    //end setting v to TRUE
-    
-    if(variables[v].quantifier == CHOICE_VALUE){
-        return max(probSATWithFalse, probSATWithTrue);
-    }
-    
-    return probSATWithFalse * (1 - variables[v].quantifier) + probSATWithTrue * variables[v].quantifier;
-    
-    //END VARIABLE SPLITS
-}
-
-/***************************************************************************
  Function:  SOLVESSAT
- Inputs:    nothing
+ Inputs:    identifier of algorithm being run
  Returns:   double
- Description:
- THE MAIN ALGORITHM IMPLEMENTATION
- clauses, assignment, chance-var-probabilities
+ Description:   the main algorithm implementation
  ***************************************************************************/
-double SOLVESSAT(){
+double SOLVESSAT(int algorithm){
+    
+    //base cases
     if(clauses.empty()){
         return SUCCESS;
     }
@@ -642,78 +188,101 @@ double SOLVESSAT(){
     
     int v = 0;
     int value = 0;
-
+    
     //BEGIN UNIT CLAUSES PROPAGATION
-    for(map<int, set<int> >::iterator it = clauses.begin(); it != clauses.end(); it++){
-        
-        if(it->second.size() == UNIT_SIZE){
-          
-            ++numUCP;
-          
-            value = POSITIVE;
-            set<int>::iterator se = it->second.begin();
-            v = *se;
+    if(algorithm == UCPONLY || algorithm >= UCPPVE){
+        for(map<int, set<int> >::iterator it = clauses.begin(); it != clauses.end(); it++){
             
-            if(v < 0){
-                value = NEGATIVE;
-                v *= NEGATIVE;
+            if(it->second.size() == UNIT_SIZE){
+                
+                ++numUCP;
+                
+                value = POSITIVE;
+                set<int>::iterator se = it->second.begin();
+                v = *se;
+                
+                if(v < 0){
+                    value = NEGATIVE;
+                    v *= NEGATIVE;
+                }
+                
+                savedInfo.quantifier = variables[v].quantifier;
+                savedInfo.clauseMembers = variables[v].clauseMembers;
+                
+                updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+                
+                double probSAT = SOLVESSAT(algorithm);
+                
+                undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+                
+                if(variables[v].quantifier == CHOICE_VALUE){
+                    return probSAT;
+                }
+                
+                if(value == NEGATIVE){
+                    return probSAT * (1 - variables[v].quantifier);
+                }
+                
+                return probSAT * variables[v].quantifier;
             }
-            
-            savedInfo.quantifier = variables[v].quantifier;
-            savedInfo.clauseMembers = variables[v].clauseMembers;
-            
-            updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-            
-            double probSAT = SOLVESSAT();
-            
-            undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-            
-            if(variables[v].quantifier == CHOICE_VALUE){
-                return probSAT;
-            }
-            
-            if(value == NEGATIVE){
-                return probSAT * (1 - variables[v].quantifier);
-            }
-            
-            return probSAT * variables[v].quantifier;
         }
     }
     //END UNIT CLAUSES PROPAGATION
     
     //BEGIN PURE CHOICE ELIMINATION
-    for (map<int, varInfo>::iterator it = variables.begin(); it != variables.end(); it++){
-        
-        result = isPureChoice(it->first);
-        v = it->first;
-        
-        if(result.first == false) {
-            continue;
-        }
-        else {
-          
-            ++numPVE;
-          
-            savedInfo.quantifier = variables[v].quantifier;
-            savedInfo.clauseMembers = variables[v].clauseMembers;
-            value = result.second;
+    if(algorithm >= PVEONLY){
+        for (map<int, varInfo>::iterator it = variables.begin(); it != variables.end(); it++){
             
-            updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+            result = isPureChoice(it->first);
+            v = it->first;
             
-            double probSSAT = SOLVESSAT();
-            
-            undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-            
-            return probSSAT;
+            if(result.first == false) {
+                continue;
+            }
+            else {
+                
+                ++numPVE;
+                
+                savedInfo.quantifier = variables[v].quantifier;
+                savedInfo.clauseMembers = variables[v].clauseMembers;
+                value = result.second;
+                
+                updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+                
+                double probSSAT = SOLVESSAT(algorithm);
+                
+                undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
+                
+                return probSSAT;
+            }
         }
     }
     //END PURE CHOICE ELIMINATION
     
     //BEGIN VARIABLE SPLITS
-    
-    ++numVS;
-    
-    v = unassigned_var();
+    if(algorithm <= UCPPVE){
+        ++numVS;
+        v = unassigned_var();
+    } else {
+        switch (algorithm){
+            case RANDOMVAR:
+                ++numVS;
+                v = randomSH();
+                break;
+            case MAXVAR:
+                ++numVS;
+                v = maximumSH();
+                break;
+            case MINCLAUSE:
+                ++numVS;
+                v = minClause();
+                break;
+            default:
+                ++numVS;
+                v = maxClause();
+                break;
+        }
+    }
     
     if (v == INVALID) {
         cout << "The variable is invalid" << endl;
@@ -721,16 +290,15 @@ double SOLVESSAT(){
     }
     
     //try setting v to FALSE
-    
+
     value = NEGATIVE;
-    
     
     savedInfo.quantifier = variables[v].quantifier;
     savedInfo.clauseMembers = variables[v].clauseMembers;
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    double probSATWithFalse = SOLVESSAT();
+    double probSATWithFalse = SOLVESSAT(algorithm);
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
@@ -745,82 +313,7 @@ double SOLVESSAT(){
     
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    double probSATWithTrue = SOLVESSAT();
-    
-    undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    //end setting v to TRUE
-    
-    if(variables[v].quantifier == CHOICE_VALUE){
-        return max(probSATWithFalse, probSATWithTrue);
-    }
-    
-    return probSATWithFalse * (1 - variables[v].quantifier) + probSATWithTrue * variables[v].quantifier;
-    
-    //END VARIABLE SPLITS
-}
-
-/***************************************************************************
- Function:  NAIVESOLVESSAT
- Inputs:    nothing
- Returns:   double
- Description:
- THE MAIN ALGORITHM IMPLEMENTATION
- clauses, assignment, chance-var-probabilities
- ***************************************************************************/
-double NAIVESOLVESSAT(){
-    if(clauses.empty()){
-        return SUCCESS;
-    }
-    
-    if (UNSATclauseExists || variables.empty() == true) {
-        return FAILURE;
-    }
-    
-    pair<bool, int> result;
-    varInfo savedInfo;
-    map<int, set <int> > savedSATClauses;
-    vector<int> savedFalseLiteralClause;
-    map<int, double> savedInactiveVariables;
-    
-    int v = 0;
-    int value = 0;
-    
-    ++numVS;
-    
-    v = unassigned_var();
-    
-    if (v == INVALID) {
-        cout << "The variable is invalid" << endl;
-        return FAILURE;
-    }
-    
-    //try setting v to FALSE
-
-    value = NEGATIVE;
-    
-    
-    savedInfo.quantifier = variables[v].quantifier;
-    savedInfo.clauseMembers = variables[v].clauseMembers;
-    
-    updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    double probSATWithFalse = NAIVESOLVESSAT();
-    
-    undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    //end setting v to FALSE
-    
-    //try setting v to TRUE
-
-    value = POSITIVE;
-    
-    savedInfo.quantifier = variables[v].quantifier;
-    savedInfo.clauseMembers = variables[v].clauseMembers;
-    
-    updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
-    
-    double probSATWithTrue = NAIVESOLVESSAT();
+    double probSATWithTrue = SOLVESSAT(algorithm);
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
@@ -837,8 +330,8 @@ double NAIVESOLVESSAT(){
 
 /***************************************************************************
  Function:  updateClausesAndVariables
- Inputs:    int
- Returns:   int (positive or negative)
+ Inputs:    structures keeping track of changing data
+ Returns:   none
  Description:   remove all satisfactory clauses after a given assignment
  ***************************************************************************/
 void updateClausesAndVariables(int variable, int value,
@@ -847,8 +340,6 @@ void updateClausesAndVariables(int variable, int value,
                                map<int, double>* savedInactiveVariables) {
     varInfo* info = &(variables[variable]);
     map<int, int>* clauseSet = &((*info).clauseMembers);
-    
-    //cout << "UPDATING VARIABLES AND CLAUSES WITH " << variable << " of value " << value << endl;
     
     for(map<int, int>::iterator it = (*clauseSet).begin(); it != (*clauseSet).end(); it++) {
         int clauseEntry = it->first;
@@ -907,8 +398,8 @@ void updateClausesAndVariables(int variable, int value,
 
 /***************************************************************************
  Function:  undoChanges
- Inputs:
- Returns:
+ Inputs:    structures keeping track of changing data
+ Returns:   none
  Description:   undo changes made before call to SOLVESSAT
  ***************************************************************************/
 void undoChanges(int variable, int value, varInfo* savedInfo,
@@ -1109,9 +600,9 @@ vector<int> helperSH(){
 
 /***************************************************************************
  Function:  isPureChoice
- Inputs:    int
+ Inputs:    variable
  Returns:   True if the variable is a pure choice variable
- Description:
+ Description:   checks if variable is a pure choice variable
  ***************************************************************************/
 pair<bool, int> isPureChoice(int variable) {
     varInfo info = variables[variable];
@@ -1140,7 +631,7 @@ pair<bool, int> isPureChoice(int variable) {
 
 /***************************************************************************
  Function:  variableSignInClause
- Inputs:    int
+ Inputs:    variable and clause
  Returns:   int (positive or negative)
  Description:   indicates the sign of a variable within a given clause
  ***************************************************************************/
@@ -1150,8 +641,8 @@ int variableSignInClause(int clauseEntry, int variable) {
 
 /***************************************************************************
  Function:  unassigned_var
- Inputs:
- Returns:   int (what variable)
+ Inputs:    none
+ Returns:   variable
  Description:   return the next variable in the same block with no assigned value
  ***************************************************************************/
 int unassigned_var(){
@@ -1166,8 +657,8 @@ int unassigned_var(){
 
 /***************************************************************************
  Function:  printClauses
- Inputs:    nothing
- Returns:   nothing
+ Inputs:    none
+ Returns:   none
  Description:   prints the clauses
  ***************************************************************************/
 void printClauses() {
@@ -1187,8 +678,8 @@ void printClauses() {
 
 /***************************************************************************
  Function:  printVariables
- Inputs:    nothing
- Returns:   nothing
+ Inputs:    none
+ Returns:   none
  Description:   prints the variables
  ***************************************************************************/
 void printVariables() {
@@ -1218,7 +709,7 @@ void printVariables() {
 /***************************************************************************
  Function:  readFile
  Inputs:    file name
- Returns:   nothing
+ Returns:   none
  Description:
  reads the content of file and stores the information as global
  variables
@@ -1347,10 +838,9 @@ void tokenize(string str, vector<string> &token_v){
 
 /***************************************************************************
  Function:  resetResult
- Inputs:    
- Returns:   
- Description:
-    reset all counts for numUCP, numPVE and numVS
+ Inputs:    none
+ Returns:   none
+ Description:   reset all counts for numUCP, numPVE and numVS
  ***************************************************************************/
 void resetResult(){
     numUCP = 0;
@@ -1360,8 +850,8 @@ void resetResult(){
 
 /***************************************************************************
  Function:  largestClause
- Inputs:    int
- Returns:   int
+ Inputs:    variable
+ Returns:   clause
  Description:
      returns the clause that has the most variables within a variable's 
      clauseSet
@@ -1384,8 +874,8 @@ int largestClause(int variable){
 
 /***************************************************************************
  Function:  smallestClause
- Inputs:    int
- Returns:   int
+ Inputs:    variable
+ Returns:   clause
  Description:
      returns the clause that has the most variables within a variable's 
      clauseSet
