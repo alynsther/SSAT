@@ -1,4 +1,4 @@
-    /*****************************************************************************
+/*****************************************************************************
  File:   ssat.cc
  Author: Adela Yang, Venecia Xu, Son Ngo
  Date:   February 2016
@@ -91,7 +91,7 @@ bool headHasValue = false;
 
 /***************************************************************************/
 /* functions */
-double SOLVESSAT(int algorithm);
+double SOLVESSAT(const unsigned int &algorithm);
 void readFile(string input);
 void tokenize(string str, vector<string> &token_v);
 pair<bool, int> isPureChoice(int variable);
@@ -132,7 +132,7 @@ int main(int argc, char* argv[]) {
 
     string names[] = {"NAIVE", "UCPONLY", "PVEONLY", "UCPPVE", "RANDOMVAR", "MAXVAR", "MINCLAUSE", "MAXCLAUSE"};
     
-    for(int i = NAIVE; i <= MAXCLAUSE; i++) {
+    for(unsigned int i = NAIVE; i <= MAXCLAUSE; i++) {
         resetResult();
         runAndPrintResult(i, names[i]);
     }
@@ -169,7 +169,7 @@ void runAndPrintResult(int num, string name) {
  Returns:   double
  Description:   the main algorithm implementation
  ***************************************************************************/
-double SOLVESSAT(int algorithm){
+double SOLVESSAT(const unsigned int &algorithm){
     
     //base cases
     if(clauses.empty()){
@@ -261,24 +261,19 @@ double SOLVESSAT(int algorithm){
     
     //BEGIN VARIABLE SPLITS
     if(algorithm <= UCPPVE){
-        ++numVS;
         v = unassigned_var();
     } else {
         switch (algorithm){
             case RANDOMVAR:
-                ++numVS;
                 v = randomSH();
                 break;
             case MAXVAR:
-                ++numVS;
                 v = maximumSH();
                 break;
             case MINCLAUSE:
-                ++numVS;
                 v = minClause();
                 break;
             default:
-                ++numVS;
                 v = maxClause();
                 break;
         }
@@ -289,6 +284,8 @@ double SOLVESSAT(int algorithm){
         return FAILURE;
     }
     
+    ++numVS;
+
     //try setting v to FALSE
 
     value = NEGATIVE;
@@ -333,6 +330,7 @@ double SOLVESSAT(int algorithm){
  Inputs:    structures keeping track of changing data
  Returns:   none
  Description:   remove all satisfactory clauses after a given assignment
+                update the clauseMembers of affected variables
  ***************************************************************************/
 void updateClausesAndVariables(int variable, int value,
                                map<int, set<int> >* savedSATClausesPtr,
