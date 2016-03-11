@@ -44,7 +44,7 @@ rere problems have the ordering 9 chance, 9 choice, 9 chance, 9 choice
 
 oldProblems: contains the original .ssat files that you provided us
 
-SSATGenerator: contains your code of generating SSAT problems and the docx file is the command line arguments we used
+SSATGenerator: contains your code of generating SSAT problems and the docx file is the command line arguments we used and the 					terminal output of all tests
 
 OTHER FILES:
 newReport: contains all the relevant results of the new .ssat files
