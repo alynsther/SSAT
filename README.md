@@ -1,7 +1,52 @@
-# SSAT
+Main File:   ssat.cc
+Author: Adela Yang, Venecia Xu, Son Ngo
+Date:   March 2016
 
-ssat-generator 36 125 8 2 RRRRRRRRRRRRRRRRRREEEEEEEEEEEEEEEEEE 0.5 0.8 0.9 0.7 0.5 0.6 0.3 0.4 0.7 0.2 0.9 0.1 0.8 0.5 0.2 0.6 0.7 0.8 1212121
+Description:
+Implement a DPLL-based stochastic satisfiability (SSAT) solver to test the
+effectiveness of unit clause propagation, pure variable elimination, and
+three different student-devised splitting heuristics compare to the naive 
+algorithm.
+Given a file, it will run all 7 algorithms on it and report the results back on the terminal.
 
-6 125 8 2 EEEEEEEEEEEEEEEEEERRRRRRRRRRRRRRRRRR 0.5 0.8 0.9 0.7 0.5 0.6 0.3 0.4 0.7 0.2 0.9 0.1 0.8 0.5 0.2 0.6 0.7 0.8 12121345345
+Running instructions:
+Run this program with two arguments on the command line the input file and the algorithm
 
-6 125 8 2 EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE 0.5 0.8 0.9 0.7 0.5 0.6 0.3 0.4 0.7 0.2 0.9 0.1 0.8 0.5 0.2 0.6 0.7 0.8 12121345345
+To compile the program:
+make ssat 
+
+To run the program:
+./ssat [file name]
+
+The file produces results on the terminal in the following format:
+
+File Read successfully
+====================================================================
+
+====================================================================
+RESULT OF SOLVESSAT -  [name of algorithm] :  [success probability]
+NUM OF UCP: [number of UCP]
+NUM OF PVE: [number of PVE]
+NUM OF VS: [number of VS]
+PERCENTAGE OF VS: [percent of VS]
+SOLUTION TIME: [solutionTime] 
+====================================================================
+
+
+FOLDER CONTENTS:
+newProblems: contains the newly created .ssat files using your ssat-generator file
+e problems have the ordering 36 choice
+r problems have the ordering 36 chance
+er problems have the ordering 18 choice, 18 chance
+re problems have the ordering 18 chance, 18 choice
+erer problems have the ordering 9 choice, 9 chance, 9 choice, 9 chance
+rere problems have the ordering 9 chance, 9 choice, 9 chance, 9 choice
+
+oldProblems: contains the original .ssat files that you provided us
+
+SSATGenerator: contains your code of generating SSAT problems and the docx file is the command line arguments we used
+
+OTHER FILES:
+newReport: contains all the relevant results of the new .ssat files
+oldReport: contains all the relevant results of the old .ssat files
+
