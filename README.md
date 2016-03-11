@@ -49,4 +49,4 @@ SSATGenerator: contains your code of generating SSAT problems and the docx file 
 OTHER FILES:
 newReport: contains all the relevant results of the new .ssat files
 oldReport: contains all the relevant results of the old .ssat files
-
+WRITE-UP: this is the write-up for Assignment 1b
