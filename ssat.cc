@@ -6,23 +6,20 @@
  Description:
  Implement a DPLL-based stochastic satisfiability (SSAT) solver to test the
  effectiveness of unit clause propagation, pure variable elimination, and
- three different splitting heuristics
+ three different student-devised splitting heuristics compare to the naive 
+ algorithm.
  
  Running instructions:
  Run this program with two arguments on the command line
  the input file and the algorithm
  
- g++ -Wall -o ssat ssat.cc [file name]
+ g++ -Wall -o ssat ssat.cc
  ./ssat [file name]
  
- Running on dover: g++ -std=c++11 -Wall -o ssat ssat.cc [file name]
+ Running on dover: 
+ g++ -std=c++11 -Wall -o ssat ssat.cc
  ./ssat [file name]
- 
- 
- NOTES FROM ADELA FOR SPLITTING HEURISTIC:
- https://goo.gl/Ax0bpc
- On page 549+, it lists 6 splitting heuristics and their performances
- 
+  
  ******************************************************************************/
 
 /*****************************************************************************/
@@ -84,10 +81,9 @@ int numVS;
 double percentageVariableSplits;
 
 map <int, varInfo> variables; //starts index at 1
-map <int, set<int> > clauses; //startes index at 0
+map <int, set<int> > clauses; //starts index at 0
 
 bool UNSATclauseExists = false;
-bool headHasValue = false;
 
 /***************************************************************************/
 /* functions */
@@ -96,7 +92,6 @@ void readFile(string input);
 void tokenize(string str, vector<string> &token_v);
 pair<bool, int> isPureChoice(int variable);
 
-int variableSignInClause(int clauseEntry, int variable);
 void updateClausesAndVariables(int variable, int value,
                                map<int, set<int> >* savedSATClausesPtr,
                                vector<int>* savedFalseLiteralClausePtr,
@@ -122,17 +117,20 @@ int smallestClause(int variable);
 /*****************************************************************************
  Function:  main
  Inputs:    argv
- Returns:   nothing
+ Returns:   success/failure
  Description:
+        give a test case (.ssat), it runs the solver with 7 required algorithms
+        and prints out the result for recording
  *****************************************************************************/
 int main(int argc, char* argv[]) {
+
     //open the file for reading
     string input = argv[1];
     readFile(input);
 
     string names[] = {"NAIVE", "UCPONLY", "PVEONLY", "UCPPVE", "RANDOMVAR", "MAXVAR", "MINCLAUSE", "MAXCLAUSE"};
     
-    for(unsigned int i = NAIVE; i <= MAXCLAUSE; i++) {
+    for (unsigned int i = NAIVE; i <= MAXCLAUSE; i++) {
         resetResult();
         runAndPrintResult(i, names[i]);
     }
@@ -142,11 +140,12 @@ int main(int argc, char* argv[]) {
 
 /*****************************************************************************
  Function:  runAndPrintResult
- Inputs:    number and name of algorithm being run
+ Inputs:    algorithm number and name of algorithm being run
  Returns:   nothing
- Description:   prints information to terminal and files
+ Description:   prints information to output window
  *****************************************************************************/
 void runAndPrintResult(int num, string name) {
+
     double start, end, solutionTime;
     double allPossibleSplits = pow(2,numVars) - 1;
     
@@ -167,12 +166,12 @@ void runAndPrintResult(int num, string name) {
  Function:  SOLVESSAT
  Inputs:    identifier of algorithm being run
  Returns:   double
- Description:   the main algorithm implementation
+ Description:   the main ssat algorithm implementation
  ***************************************************************************/
 double SOLVESSAT(const unsigned int &algorithm){
     
     //base cases
-    if(clauses.empty()){
+    if (clauses.empty()) {
         return SUCCESS;
     }
     
@@ -190,18 +189,19 @@ double SOLVESSAT(const unsigned int &algorithm){
     int value = 0;
     
     //BEGIN UNIT CLAUSES PROPAGATION
-    if(algorithm == UCPONLY || algorithm >= UCPPVE){
-        for(map<int, set<int> >::iterator it = clauses.begin(); it != clauses.end(); it++){
+    if (algorithm == UCPONLY || algorithm >= UCPPVE) {
+        for (map<int, set<int> >::iterator it = clauses.begin(); it != clauses.end(); it++) {
             
-            if(it->second.size() == UNIT_SIZE){
+            if (it->second.size() == UNIT_SIZE) {
                 
                 ++numUCP;
                 
+                //assigning the required value for v
                 value = POSITIVE;
                 set<int>::iterator se = it->second.begin();
                 v = *se;
                 
-                if(v < 0){
+                if (v < 0) {
                     value = NEGATIVE;
                     v *= NEGATIVE;
                 }
@@ -215,11 +215,11 @@ double SOLVESSAT(const unsigned int &algorithm){
                 
                 undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
                 
-                if(variables[v].quantifier == CHOICE_VALUE){
+                if (variables[v].quantifier == CHOICE_VALUE) {
                     return probSAT;
                 }
                 
-                if(value == NEGATIVE){
+                if (value == NEGATIVE) {
                     return probSAT * (1 - variables[v].quantifier);
                 }
                 
@@ -230,13 +230,14 @@ double SOLVESSAT(const unsigned int &algorithm){
     //END UNIT CLAUSES PROPAGATION
     
     //BEGIN PURE CHOICE ELIMINATION
-    if(algorithm >= PVEONLY){
+    if (algorithm >= PVEONLY) {
         for (map<int, varInfo>::iterator it = variables.begin(); it != variables.end(); it++){
             
             result = isPureChoice(it->first);
             v = it->first;
             
-            if(result.first == false) {
+            //if there is no pure choice variable then continue
+            if (result.first == false) {
                 continue;
             }
             else {
@@ -245,6 +246,7 @@ double SOLVESSAT(const unsigned int &algorithm){
                 
                 savedInfo.quantifier = variables[v].quantifier;
                 savedInfo.clauseMembers = variables[v].clauseMembers;
+
                 value = result.second;
                 
                 updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
@@ -260,9 +262,10 @@ double SOLVESSAT(const unsigned int &algorithm){
     //END PURE CHOICE ELIMINATION
     
     //BEGIN VARIABLE SPLITS
-    if(algorithm <= UCPPVE){
+    if (algorithm <= UCPPVE) {
         v = unassigned_var();
-    } else {
+    } 
+    else {
         switch (algorithm){
             case RANDOMVAR:
                 v = randomSH();
@@ -316,7 +319,7 @@ double SOLVESSAT(const unsigned int &algorithm){
     
     //end setting v to TRUE
     
-    if(variables[v].quantifier == CHOICE_VALUE){
+    if (variables[v].quantifier == CHOICE_VALUE) {
         return max(probSATWithFalse, probSATWithTrue);
     }
     
@@ -336,37 +339,38 @@ void updateClausesAndVariables(int variable, int value,
                                map<int, set<int> >* savedSATClausesPtr,
                                vector<int>* savedFalseLiteralClausePtr,
                                map<int, double>* savedInactiveVariables) {
+
     varInfo* info = &(variables[variable]);
     map<int, int>* clauseSet = &((*info).clauseMembers);
     
-    for(map<int, int>::iterator it = (*clauseSet).begin(); it != (*clauseSet).end(); it++) {
+    for (map<int, int>::iterator it = (*clauseSet).begin(); it != (*clauseSet).end(); it++) {
         int clauseEntry = it->first;
         int clauseEntryValue = it->second;
         
         //remove clauses that have the true-value variables
-        if (clauseEntryValue == value){
+        if (clauseEntryValue == value) {
             
             //save true clause for undochanges
             (*savedSATClausesPtr).insert(pair<int, set<int> >(clauseEntry, clauses[clauseEntry]));
             
             //going through the satisfied clause to update its variables' clauseMembers
-            for (set<int>::iterator iter = clauses[clauseEntry].begin(); iter != clauses[clauseEntry].end(); iter++){
+            for (set<int>::iterator iter = clauses[clauseEntry].begin(); iter != clauses[clauseEntry].end(); iter++) {
                 
                 int removedVar = abs(*iter);
                 
                 //skip the being examined variable because we will delete them from
                 //variables map later
-                if (removedVar == variable){
+                if (removedVar == variable) {
                     continue;
                 }
                 
                 //if variable we need to update is still active (i.e in the variables map) then remove the
                 //clauseEntry from that variable
-                if (variables.find(removedVar) != variables.end()){
+                if (variables.find(removedVar) != variables.end()) {
                     variables[removedVar].clauseMembers.erase(clauseEntry);
                     
                     //if the variable after update is in no active clause then remove that variable from variables map
-                    if (variables[removedVar].clauseMembers.empty() == true){
+                    if (variables[removedVar].clauseMembers.empty() == true) {
                         (*savedInactiveVariables).insert(pair<int, double>(removedVar, variables[removedVar].quantifier));
                         variables.erase(removedVar);
                     }
@@ -383,7 +387,8 @@ void updateClausesAndVariables(int variable, int value,
             (*savedFalseLiteralClausePtr).push_back(clauseEntry);
             clauses[clauseEntry].erase(NEGATIVE * value * variable);
             
-            if (clauses[clauseEntry].empty() == true){
+            //problem unsolvable if there is one clause that becomes empty but not satisfied
+            if (clauses[clauseEntry].empty() == true) {
                 UNSATclauseExists = true;
             }
         }
@@ -406,7 +411,7 @@ void undoChanges(int variable, int value, varInfo* savedInfo,
                  map<int, double>* savedInactiveVariables){
     
     //put back the assigned variable to variables list
-    for (map<int, double>:: iterator it = (*savedInactiveVariables).begin(); it != (*savedInactiveVariables).end();){
+    for (map<int, double>:: iterator it = (*savedInactiveVariables).begin(); it != (*savedInactiveVariables).end();) {
         variables[it->first].quantifier = it->second;
         (*savedInactiveVariables).erase(it++);
     }
@@ -415,14 +420,15 @@ void undoChanges(int variable, int value, varInfo* savedInfo,
     variables[variable].clauseMembers = (*savedInfo).clauseMembers;
     
     //put back SAT clauses to clauses list
-    for (map<int, set<int> >::iterator it = (*savedSATClausesPtr).begin(); it != (*savedSATClausesPtr).end(); it++){
+    for (map<int, set<int> >::iterator it = (*savedSATClausesPtr).begin(); it != (*savedSATClausesPtr).end(); it++) {
         clauses[it->first] = it->second;
         
         //put back the satisfied clauses to their corresponding variables
-        for (set<int>::iterator iter = (it->second).begin(); iter != (it->second).end(); iter++){
+        for (set<int>::iterator iter = (it->second).begin(); iter != (it->second).end(); iter++) {
             int savedVariable = abs(*iter);
             
-            if (*iter > 0){
+            //put back removed clauses to the corresponding variables' clauseMembers set
+            if (*iter > 0) {
                 (variables[savedVariable].clauseMembers).insert(pair<int, int>(it->first, POSITIVE));
             }
             else {
@@ -432,9 +438,9 @@ void undoChanges(int variable, int value, varInfo* savedInfo,
     }
     
     //put back FALSE literals to their original clauses
-    for (vector<int>::iterator it = (*savedFalseLiteralClausePtr).begin(); it != (*savedFalseLiteralClausePtr).end(); it++){
+    for (vector<int>::iterator it = (*savedFalseLiteralClausePtr).begin(); it != (*savedFalseLiteralClausePtr).end(); it++) {
         
-        if ((variables[variable].clauseMembers)[*it] > 0){
+        if ((variables[variable].clauseMembers)[*it] > 0) {
             clauses[*it].insert(variable);
         }
         else {
@@ -452,9 +458,10 @@ void undoChanges(int variable, int value, varInfo* savedInfo,
  Function:  randomSH
  Inputs:    none
  Returns:   variable
- Description: picks a random variable from the block
+ Description: picks a random variable from the currently active block
  ***************************************************************************/
 int randomSH(){
+
     if (variables.empty() == true) {
         return INVALID;
     }
@@ -470,10 +477,11 @@ int randomSH(){
 /***************************************************************************
  Function:  maximumSH
  Inputs:    none
- Returns:   variable
+ Returns:   int (variable)
  Description:   picks the variable that appears in the most clauses
  ***************************************************************************/
-int maximumSH(){
+int maximumSH() {
+
     if (variables.empty() == true) {
         return INVALID;
     }
@@ -483,8 +491,8 @@ int maximumSH(){
     int max = INT_MIN;
     int maxIndex;
     vector <int>::iterator it;
-    for(it = temp.begin(); it!=temp.end(); it++){
-        if ((int)(variables[(*it)].clauseMembers).size() > max){
+    for (it = temp.begin(); it!=temp.end(); it++) {
+        if ((int)(variables[(*it)].clauseMembers).size() > max) {
             max = (variables[(*it)].clauseMembers).size();
             maxIndex = (*it);
         }
@@ -496,23 +504,23 @@ int maximumSH(){
 /***************************************************************************
  Function:  maxClause
  Inputs:    none
- Returns:   variable
- Description:   picks the variable that appears in the most clauses
+ Returns:   int (variable)
+ Description:   picks the variable that belongs to the biggest active clause     
  ***************************************************************************/
  int maxClause(){
+
     vector<int> activeBlock = helperSH();
 
     unsigned int maxSize = 0;
     unsigned int maxClause = 0;
     unsigned int maxVar = 1;
 
-    for (unsigned int i = 0; i < activeBlock.size(); i++){
+    for (unsigned int i = 0; i < activeBlock.size(); i++) {
 
         unsigned int tempClauseEntry = largestClause(activeBlock[i]);
-
         unsigned int tempSize = (clauses[tempClauseEntry]).size();
 
-        if (maxSize < tempSize){
+        if (maxSize < tempSize) {
             maxSize = tempSize;
             maxClause = tempClauseEntry;
             maxVar = activeBlock[i];
@@ -520,7 +528,7 @@ int maximumSH(){
 
     }
 
-    if (clauses[maxClause].empty() == true){
+    if (clauses[maxClause].empty() == true) {
         return INVALID;
     }
 
@@ -530,23 +538,24 @@ int maximumSH(){
  /***************************************************************************
  Function:  minClause
  Inputs:    none
- Returns:   variable
- Description:   picks the variable that appears in the most clauses
+ Returns:   int (variable)
+ Description:   picks the variable that belongs to the smallest active clause
  ***************************************************************************/
- int minClause(){
+ int minClause() {
+
     vector<int> activeBlock = helperSH();
 
     unsigned int minSize = INT_MAX;
     unsigned int minClause = INT_MAX;
     unsigned int minVar = 1;
 
-    for (unsigned int i = 0; i < activeBlock.size(); i++){
+    for (unsigned int i = 0; i < activeBlock.size(); i++) {
 
         unsigned int tempClauseEntry = smallestClause(activeBlock[i]);
 
         unsigned int tempSize = (clauses[tempClauseEntry]).size();
 
-        if (minSize > tempSize){
+        if (minSize > tempSize) {
             minSize = tempSize;
             minClause = tempClauseEntry;
             minVar = activeBlock[i];
@@ -554,7 +563,7 @@ int maximumSH(){
 
     }
 
-    if (clauses[minClause].empty() == true){
+    if (clauses[minClause].empty() == true) {
         return INVALID;
     }
 
@@ -564,26 +573,28 @@ int maximumSH(){
  /***************************************************************************
  Function:  helperSH
  Inputs:    none
- Returns:   vector of same block variables
- Description: determines the variables of the same block
+ Returns:   vector representing the currently active block
+ Description: determines the variables of the same block and put all into
+                one vector
  ***************************************************************************/
-vector<int> helperSH(){
+vector<int> helperSH() {
+
     vector <int> temp;
     double previous;
     bool started = false;
     
     map<int, varInfo>::iterator it;
-    for(it = variables.begin(); it!=variables.end(); ++it){
-        if(!started){
+    for (it = variables.begin(); it!=variables.end(); ++it) { 
+        if (!started) {
             started = true;
             previous = (it->second).quantifier;
             temp.push_back(it->first);
         }
-        else{
-            if(previous * (it->second).quantifier < 0){
+        else {
+            if (previous * (it->second).quantifier < 0) {
                 break;
             }
-            else{
+            else {
                 temp.push_back(it->first);
                 previous = (it->second).quantifier;
             }
@@ -603,6 +614,7 @@ vector<int> helperSH(){
  Description:   checks if variable is a pure choice variable
  ***************************************************************************/
 pair<bool, int> isPureChoice(int variable) {
+
     varInfo info = variables[variable];
     if (info.quantifier != CHOICE_VALUE) {
         return pair<bool, int>(false, INVALID);
@@ -612,7 +624,7 @@ pair<bool, int> isPureChoice(int variable) {
     int status = POSITIVE;
     bool signSwitch = false;
     
-    for (map<int, int>::iterator it = (*clauseInfo).begin(); it != (*clauseInfo).end(); it++){
+    for (map<int, int>::iterator it = (*clauseInfo).begin(); it != (*clauseInfo).end(); it++) {
         if (!signSwitch) {
             status = it->second;
             signSwitch = true;
@@ -628,26 +640,74 @@ pair<bool, int> isPureChoice(int variable) {
 }
 
 /***************************************************************************
- Function:  variableSignInClause
- Inputs:    variable and clause
- Returns:   int (positive or negative)
- Description:   indicates the sign of a variable within a given clause
- ***************************************************************************/
-int variableSignInClause(int clauseEntry, int variable) {
-    return variables[variable].clauseMembers[clauseEntry];
-}
-
-/***************************************************************************
  Function:  unassigned_var
  Inputs:    none
  Returns:   variable
  Description:   return the next variable in the same block with no assigned value
  ***************************************************************************/
-int unassigned_var(){
+int unassigned_var() {
+
     if (variables.empty() == true) {
         return INVALID;
     }
     return variables.begin()->first;
+}
+
+/***************************************************************************
+ Function:  resetResult
+ Inputs:    none
+ Returns:   none
+ Description:   reset all counts for numUCP, numPVE and numVS
+ ***************************************************************************/
+void resetResult() {
+
+    numUCP = 0;
+    numPVE = 0;
+    numVS = 0;
+}
+
+/***************************************************************************
+ Function:  largestClause
+ Inputs:    variable
+ Returns:   clause
+ Description:
+        returns the clause that has the most variables within a variable's clauseSet
+ ***************************************************************************/
+int largestClause(int variable) {
+
+    unsigned int maxSize = 0;
+    unsigned int maxClause = 0;
+
+    for (map<int, int>::iterator it = variables[variable].clauseMembers.begin(); it != variables[variable].clauseMembers.end(); it++) {
+        if (maxSize < clauses[it->first].size()) {
+            maxSize = clauses[it->first].size();
+            maxClause = it->first;
+        }
+    }
+
+    return maxClause;
+}
+
+/***************************************************************************
+ Function:  smallestClause
+ Inputs:    variable
+ Returns:   clause
+ Description:
+        returns the clause that has the least variables within a variable's clauseSet
+ ***************************************************************************/
+int smallestClause(int variable) {
+
+    unsigned int minSize = INT_MAX;
+    unsigned int minClause = INT_MAX;
+
+    for (map<int, int>::iterator it = variables[variable].clauseMembers.begin(); it != variables[variable].clauseMembers.end(); it++) {
+        if (minSize > clauses[it->first].size()) {
+            minSize = clauses[it->first].size();
+            minClause = it->first;
+        }
+    }
+
+    return minClause;
 }
 
 /***************************************************************************/
@@ -657,28 +717,29 @@ int unassigned_var(){
  Function:  printClauses
  Inputs:    none
  Returns:   none
- Description:   prints the clauses
+ Description:   prints the currently active clauses
  ***************************************************************************/
 void printClauses() {
+
     cout << "printing clauses " << endl;
     map<int, set <int> >::iterator it;
-    for(it = clauses.begin(); it!=clauses.end(); ++it){
+    for (it = clauses.begin(); it!=clauses.end(); ++it) {
         cout << it->first << ":";
         set<int>::iterator iter;
         
-        for(iter = (it->second).begin(); iter!=(it->second).end();++iter){
+        for (iter = (it->second).begin(); iter!=(it->second).end();++iter) {
             cout << " " << (*iter);
         }
         cout << endl;
     }
-    cout << "\n";
+    cout << endl;
 }
 
 /***************************************************************************
  Function:  printVariables
  Inputs:    none
  Returns:   none
- Description:   prints the variables
+ Description:   prints the currently active variables
  ***************************************************************************/
 void printVariables() {
     
@@ -688,14 +749,14 @@ void printVariables() {
     for(it = variables.begin(); it != variables.end(); it++){
         cout << it->first << " => " << (it->second).quantifier << endl;
     }
-    cout << "\n";
+    cout << endl;
     
     cout << "printing varInfo" << endl;
-    for (it = variables.begin(); it != variables.end(); it++){
+    for (it = variables.begin(); it != variables.end(); it++) {
         map<int, int>::iterator itClause = (it->second).clauseMembers.begin();
         cout << "Clause Set of variable " << it->first << endl;
-        for (; itClause != (it->second).clauseMembers.end(); itClause++){
-            cout << itClause->first << " =>"<< itClause->second << endl;
+        for (; itClause != (it->second).clauseMembers.end(); itClause++) {
+            cout << itClause->first << " => "<< itClause->second << endl;
         }
         cout << endl;
     }
@@ -709,10 +770,11 @@ void printVariables() {
  Inputs:    file name
  Returns:   none
  Description:
- reads the content of file and stores the information as global
- variables
+            reads the content of file and stores the information as global
+            variables
  ***************************************************************************/
 void readFile(string input) {
+
     string sTemp;
     ifstream inFile;
     vector<string> vSTemp;
@@ -722,13 +784,13 @@ void readFile(string input) {
     inFile.open(input.c_str());
     
     // file does not exist, then do nothing
-    if(!inFile.is_open()){
+    if (!inFile.is_open()) {
         cout << "File is not valid" << endl;
         exit(1);
     }
     
     i = 4;
-    while(i >= 0) {
+    while (i >= 0) {
         getline(inFile, sTemp);
         i--;
     }
@@ -768,14 +830,14 @@ void readFile(string input) {
     //variables
     i = numVars;
     unsigned int count = 1;
-    while(i > 0 ){
+    while (i > 0 ) {
         getline(inFile, sTemp);
         vSTemp.clear();
         tokenize(sTemp, vSTemp);
         
         varInfo var;
-        for(unsigned int b = 0; b <= vSTemp.size(); b++){
-            if(b%2 == 1) {
+        for (unsigned int b = 0; b <= vSTemp.size(); b++) {
+            if (b%2 == 1) {
                 var.quantifier = stod(vSTemp.at(b));
                 variables.insert(pair<int, varInfo>(count, var));
             }
@@ -788,20 +850,20 @@ void readFile(string input) {
     getline(inFile, sTemp);
     getline(inFile, sTemp);
     
-    for(i = 0; i < numClauses; i++){
+    for (i = 0; i < numClauses; i++){
         vSTemp.clear();
         getline(inFile, sTemp);
         tokenize(sTemp, vSTemp);
         vSTemp.pop_back();
         
-        for(unsigned int j = 0; j < vSTemp.size(); j++){
+        for (unsigned int j = 0; j < vSTemp.size(); j++) {
             int num = stoi(vSTemp[j].c_str());
             vITemp.insert(num);
             
-            if(num > 0){
+            if (num > 0) {
                 ((variables[abs(num)]).clauseMembers).insert(pair<int, int>(i, POSITIVE));
             }
-            else{
+            else {
                 ((variables[abs(num)]).clauseMembers).insert(pair<int, int>(i, NEGATIVE));
             }
         }
@@ -817,11 +879,11 @@ void readFile(string input) {
 /***************************************************************************
  Function:  tokenize
  Inputs:    string and vector
- Returns:   vector
- Description:
- splits a string by whitespace
+ Returns:   none (but the second parameter is modified)
+ Description: splits a string by whitespace
  ***************************************************************************/
-void tokenize(string str, vector<string> &token_v){
+void tokenize(string str, vector<string> &token_v) {
+
     size_t start = str.find_first_not_of(' '), end=start;
     
     while(start != string::npos) {
@@ -833,65 +895,5 @@ void tokenize(string str, vector<string> &token_v){
         start = str.find_first_not_of(' ', end);
     }
 }
-
-/***************************************************************************
- Function:  resetResult
- Inputs:    none
- Returns:   none
- Description:   reset all counts for numUCP, numPVE and numVS
- ***************************************************************************/
-void resetResult(){
-    numUCP = 0;
-    numPVE = 0;
-    numVS = 0;
-}
-
-/***************************************************************************
- Function:  largestClause
- Inputs:    variable
- Returns:   clause
- Description:
-     returns the clause that has the most variables within a variable's 
-     clauseSet
- ***************************************************************************/
-int largestClause(int variable){
-
-    unsigned int maxSize = 0;
-    unsigned int maxClause = 0;
-
-    for (map<int, int>::iterator it = variables[variable].clauseMembers.begin(); it != variables[variable].clauseMembers.end(); it++){
-        if (maxSize < clauses[it->first].size()){
-            maxSize = clauses[it->first].size();
-            maxClause = it->first;
-        }
-    }
-
-    return maxClause;
-
-}
-
-/***************************************************************************
- Function:  smallestClause
- Inputs:    variable
- Returns:   clause
- Description:
-     returns the clause that has the most variables within a variable's 
-     clauseSet
- ***************************************************************************/
-int smallestClause(int variable){
-
-    unsigned int minSize = INT_MAX;
-    unsigned int minClause = INT_MAX;
-
-    for (map<int, int>::iterator it = variables[variable].clauseMembers.begin(); it != variables[variable].clauseMembers.end(); it++){
-        if (minSize > clauses[it->first].size()){
-            minSize = clauses[it->first].size();
-            minClause = it->first;
-        }
-    }
-
-    return minClause;
-}
-
 
 /****** END OF FILE **********************************************************/
