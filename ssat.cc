@@ -462,15 +462,20 @@ void undoChanges(int variable, int value, varInfo* savedInfo,
  ***************************************************************************/
 int randomSH(){
 
+    // if there are no variables to choose from, return
     if (variables.empty() == true) {
         return INVALID;
     }
     
+    // gets the vector of variables of the current block
     vector <int> temp = helperSH();
+
     
     srand(time(NULL));
-    int randNum = rand() % (temp.size());
     
+    // choose a random variable of the block
+    int randNum = rand() % (temp.size());
+
     return temp[randNum];
 }
 
@@ -482,15 +487,19 @@ int randomSH(){
  ***************************************************************************/
 int maximumSH() {
 
+    // if there are no variables to choose from, return
     if (variables.empty() == true) {
         return INVALID;
     }
     
+    // get the vector of variables of the current block
     vector <int> temp = helperSH();
     
     int max = INT_MIN;
     int maxIndex;
     vector <int>::iterator it;
+
+    // go through the block and update the variable that appears in the most clauses
     for (it = temp.begin(); it!=temp.end(); it++) {
         if ((int)(variables[(*it)].clauseMembers).size() > max) {
             max = (variables[(*it)].clauseMembers).size();
@@ -584,14 +593,18 @@ vector<int> helperSH() {
     bool started = false;
     
     map<int, varInfo>::iterator it;
+    //iterates through variables map
     for (it = variables.begin(); it!=variables.end(); ++it) { 
+        // gets the first variable and its quantifier of the map
         if (!started) {
             started = true;
             previous = (it->second).quantifier;
             temp.push_back(it->first);
         }
+        // otherwise, it checks if the other quantifiers are part of the same block
         else {
             if (previous * (it->second).quantifier < 0) {
+                // different block then return
                 break;
             }
             else {
@@ -601,6 +614,7 @@ vector<int> helperSH() {
         }
     }
     
+    // returns a vector of the variables
     return temp;
 }
          
@@ -789,6 +803,7 @@ void readFile(string input) {
         exit(1);
     }
     
+    // skips the initial 4 lines
     i = 4;
     while (i >= 0) {
         getline(inFile, sTemp);
@@ -830,7 +845,7 @@ void readFile(string input) {
     //variables
     i = numVars;
     unsigned int count = 1;
-    while (i > 0 ) {
+    while (i > 0) {
         getline(inFile, sTemp);
         vSTemp.clear();
         tokenize(sTemp, vSTemp);
