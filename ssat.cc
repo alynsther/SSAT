@@ -80,13 +80,13 @@ int numPVE;
 int numVS;
 double percentageVariableSplits;
 
-map <int, varInfo> variables; //starts index at 1
-map <int, set<int> > clauses; //starts index at 0
+map <int, varInfo> variables; //starts indexing at 1
+map <int, set<int> > clauses; //starts indexing at 0
 
-bool UNSATclauseExists = false;
+bool UNSATclauseExists = false;  //indicate existence of unsatisfiable clause
 
 /***************************************************************************/
-/* functions */
+/* functions prototypes */
 double SOLVESSAT(const unsigned int &algorithm);
 void readFile(string input);
 void tokenize(string str, vector<string> &token_v);
@@ -130,6 +130,7 @@ int main(int argc, char* argv[]) {
 
     string names[] = {"NAIVE", "UCPONLY", "PVEONLY", "UCPPVE", "RANDOMVAR", "MAXVAR", "MINCLAUSE", "MAXCLAUSE"};
     
+    //run and print results of all algorithms, one at a time
     for (unsigned int i = NAIVE; i <= MAXCLAUSE; i++) {
         resetResult();
         runAndPrintResult(i, names[i]);
@@ -142,7 +143,7 @@ int main(int argc, char* argv[]) {
  Function:  runAndPrintResult
  Inputs:    algorithm number and name of algorithm being run
  Returns:   nothing
- Description:   prints information to output window
+ Description:   prints results of the corresponding algorithm to output window
  *****************************************************************************/
 void runAndPrintResult(int num, string name) {
 
@@ -170,22 +171,39 @@ void runAndPrintResult(int num, string name) {
  ***************************************************************************/
 double SOLVESSAT(const unsigned int &algorithm){
     
-    //base cases
+    //returns success if all clauses have been satisfied
     if (clauses.empty()) {
         return SUCCESS;
     }
     
+    //returns failure if there is at least one unsatisfiable clause OR there are 
+    //no more active variables while there are still active clauses
     if (UNSATclauseExists || variables.empty() == true) {
         return FAILURE;
     }
     
-    pair<bool, int> result;
+    //[START] setting up the structures needed to save information that are being updated
+
+    //struct to store the information of the variables: its quantifier and its clauseMember map
+    // being considered
     varInfo savedInfo;
+
+    //map of all clauses that are satisfied under the assignment
     map<int, set <int> > savedSATClauses;
+
+    //vector of clause numbers whose currently assigned variable appear false
     vector<int> savedFalseLiteralClause;
+
+    //map of all variables that become inactive after their clauseMember map is updated
+    //after the assignment
     map<int, double> savedInactiveVariables;
+
+    //[END] setting up
     
+    //v - variable being considered
     int v = 0;
+
+    //value - value to be assigned to v
     int value = 0;
     
     //BEGIN UNIT CLAUSES PROPAGATION
@@ -194,21 +212,25 @@ double SOLVESSAT(const unsigned int &algorithm){
             
             if (it->second.size() == UNIT_SIZE) {
                 
-                ++numUCP;
+                //updating total number of UCP
+                ++numUCP;       
                 
                 //assigning the required value for v
                 value = POSITIVE;
                 set<int>::iterator se = it->second.begin();
                 v = *se;
                 
+                //make sure that the value matches with its quantifier
                 if (v < 0) {
                     value = NEGATIVE;
                     v *= NEGATIVE;
                 }
                 
+                //save the info of assigned variable v
                 savedInfo.quantifier = variables[v].quantifier;
                 savedInfo.clauseMembers = variables[v].clauseMembers;
                 
+                //the below part resemebles the algorithm distributed by professor Majercik
                 updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
                 
                 double probSAT = SOLVESSAT(algorithm);
@@ -230,25 +252,40 @@ double SOLVESSAT(const unsigned int &algorithm){
     //END UNIT CLAUSES PROPAGATION
     
     //BEGIN PURE CHOICE ELIMINATION
+
+    //stores the return from isPureChoice function
+    pair<bool, int> result;     
+    
     if (algorithm >= PVEONLY) {
+
+        //going through every key in the variables map to find the first pure choice variable
         for (map<int, varInfo>::iterator it = variables.begin(); it != variables.end(); it++){
             
             result = isPureChoice(it->first);
-            v = it->first;
-            
+
             //if there is no pure choice variable then continue
             if (result.first == false) {
                 continue;
             }
+
+            //store the being considered variable in variable v
+            v = it->first;
+            
+            //found a pure choice variable, execute PVE and return computed probability, ending the above 
+            // for-loop
             else {
                 
-                ++numPVE;
+                //updating total number of PVE
+                ++numPVE;       
                 
+                //save the info of assigned variable v
                 savedInfo.quantifier = variables[v].quantifier;
                 savedInfo.clauseMembers = variables[v].clauseMembers;
 
+                //set the value of v
                 value = result.second;
                 
+                //the below part resemebles the algorithm distributed by professor Majercik
                 updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
                 
                 double probSSAT = SOLVESSAT(algorithm);
@@ -262,6 +299,8 @@ double SOLVESSAT(const unsigned int &algorithm){
     //END PURE CHOICE ELIMINATION
     
     //BEGIN VARIABLE SPLITS
+
+    //choosing the right heuristic to run based on the "algorithm" variable
     if (algorithm <= UCPPVE) {
         v = unassigned_var();
     } 
@@ -287,38 +326,42 @@ double SOLVESSAT(const unsigned int &algorithm){
         return FAILURE;
     }
     
-    ++numVS;
+    //updating total number of variable splits (VS)
+    ++numVS;        
 
-    //try setting v to FALSE
-
+    //[BEGIN] try setting v to FALSE
     value = NEGATIVE;
     
+    //save info of assigned variable v
     savedInfo.quantifier = variables[v].quantifier;
     savedInfo.clauseMembers = variables[v].clauseMembers;
     
+    //the below part resemebles the algorithm distributed by professor Majercik
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
     double probSATWithFalse = SOLVESSAT(algorithm);
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    //end setting v to FALSE
+    //[END] try setting v to FALSE
     
-    //try setting v to TRUE
-    
+    //[BEGIN] try setting v to TRUE
     value = POSITIVE;
     
+    //save info of assigned variable v
     savedInfo.quantifier = variables[v].quantifier;
     savedInfo.clauseMembers = variables[v].clauseMembers;
     
+    //the below part resemebles the algorithm distributed by professor Majercik
     updateClausesAndVariables(v, value, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
     double probSATWithTrue = SOLVESSAT(algorithm);
     
     undoChanges(v, value, &savedInfo, &savedSATClauses, &savedFalseLiteralClause, &savedInactiveVariables);
     
-    //end setting v to TRUE
+    //[END] try setting v to TRUE
     
+    //the below part resemebles the algorithm distributed by professor Majercik
     if (variables[v].quantifier == CHOICE_VALUE) {
         return max(probSATWithFalse, probSATWithTrue);
     }
@@ -340,22 +383,29 @@ void updateClausesAndVariables(int variable, int value,
                                vector<int>* savedFalseLiteralClausePtr,
                                map<int, double>* savedInactiveVariables) {
 
+    //create pointer to varInfo struct of assigned variable
     varInfo* info = &(variables[variable]);
+
+    //create pointer to clauseMember map (in varInfo struct) of assigned variable
     map<int, int>* clauseSet = &((*info).clauseMembers);
     
+    //going through every entry in clauseSet to udpate based on the variable's assignment
     for (map<int, int>::iterator it = (*clauseSet).begin(); it != (*clauseSet).end(); it++) {
+
+        //storing intermediate value to variables
         int clauseEntry = it->first;
         int clauseEntryValue = it->second;
         
         //remove clauses that have the true-value variables
         if (clauseEntryValue == value) {
             
-            //save true clause for undochanges
+            //save clauses that have been satisfied for undoChanges
             (*savedSATClausesPtr).insert(pair<int, set<int> >(clauseEntry, clauses[clauseEntry]));
             
-            //going through the satisfied clause to update its variables' clauseMembers
+            //going through every literal in the satisfied clause to update its variables' clauseMembers
             for (set<int>::iterator iter = clauses[clauseEntry].begin(); iter != clauses[clauseEntry].end(); iter++) {
                 
+                //keys in variables map are always positive
                 int removedVar = abs(*iter);
                 
                 //skip the being examined variable because we will delete them from
@@ -364,14 +414,17 @@ void updateClausesAndVariables(int variable, int value,
                     continue;
                 }
                 
-                //if variable we need to update is still active (i.e in the variables map) then remove the
-                //clauseEntry from that variable
+                //if removedVar is active (i.e in the variables map) then remove the
+                //clauseEntry from removedVar's clauseMember map. If removedVar is not active then continue.
                 if (variables.find(removedVar) != variables.end()) {
                     variables[removedVar].clauseMembers.erase(clauseEntry);
                     
-                    //if the variable after update is in no active clause then remove that variable from variables map
+                    //if removedVar's clauseMember map has no keys then erase removedVar from variables map 
                     if (variables[removedVar].clauseMembers.empty() == true) {
+
+                        //save before erasing for undoChanges
                         (*savedInactiveVariables).insert(pair<int, double>(removedVar, variables[removedVar].quantifier));
+
                         variables.erase(removedVar);
                     }
                 }
@@ -384,10 +437,14 @@ void updateClausesAndVariables(int variable, int value,
         
         //remove the falsely assigned variable in the clauses
         else {
+
+            //save before erasing for undoChanges
             (*savedFalseLiteralClausePtr).push_back(clauseEntry);
+
+            //making sure the removed value match the key's set's entry
             clauses[clauseEntry].erase(NEGATIVE * value * variable);
             
-            //problem unsolvable if there is one clause that becomes empty but not satisfied
+            //problem unsolvable if there is at least one unsatisfiable clause
             if (clauses[clauseEntry].empty() == true) {
                 UNSATclauseExists = true;
             }
@@ -410,24 +467,28 @@ void undoChanges(int variable, int value, varInfo* savedInfo,
                  vector<int>* savedFalseLiteralClausePtr,
                  map<int, double>* savedInactiveVariables){
     
-    //put back the assigned variable to variables list
+    //put back all inactive variables after the update to variables list
     for (map<int, double>:: iterator it = (*savedInactiveVariables).begin(); it != (*savedInactiveVariables).end();) {
         variables[it->first].quantifier = it->second;
         (*savedInactiveVariables).erase(it++);
     }
     
+    //restore info of assigned variable
     variables[variable].quantifier = (*savedInfo).quantifier;
     variables[variable].clauseMembers = (*savedInfo).clauseMembers;
     
-    //put back SAT clauses to clauses list
+    //put back satisfied clauses to clauses list, going through every clause in the savedSATClauses map
     for (map<int, set<int> >::iterator it = (*savedSATClausesPtr).begin(); it != (*savedSATClausesPtr).end(); it++) {
         clauses[it->first] = it->second;
         
-        //put back the satisfied clauses to their corresponding variables
+        //going through every literals in the satisfied clause to undo changes made to their clauseMembers maps
         for (set<int>::iterator iter = (it->second).begin(); iter != (it->second).end(); iter++) {
+
+            //key of variables map is positive
             int savedVariable = abs(*iter);
             
-            //put back removed clauses to the corresponding variables' clauseMembers set
+            //put back removed clauses to the corresponding variable's clauseMembers map. We need to make sure
+            //that the value is matched with their original sign.
             if (*iter > 0) {
                 (variables[savedVariable].clauseMembers).insert(pair<int, int>(it->first, POSITIVE));
             }
@@ -436,10 +497,12 @@ void undoChanges(int variable, int value, varInfo* savedInfo,
             }
         }
     }
-    
-    //put back FALSE literals to their original clauses
+     
+    //going through every clause that the assigned variable appears falsely and put back that variable to the 
+    // right clause in clauses map
     for (vector<int>::iterator it = (*savedFalseLiteralClausePtr).begin(); it != (*savedFalseLiteralClausePtr).end(); it++) {
         
+        //put back the variable to its original clause, with the right sign and value
         if ((variables[variable].clauseMembers)[*it] > 0) {
             clauses[*it].insert(variable);
         }
@@ -448,6 +511,7 @@ void undoChanges(int variable, int value, varInfo* savedInfo,
         }
     }
     
+    //reset the existence of unsatisfiable clause to be false
     UNSATclauseExists = false;
 }
 
