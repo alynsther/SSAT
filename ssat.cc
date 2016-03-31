@@ -428,7 +428,6 @@ void updateClausesAndVariables(int variable, int value,
                         variables.erase(removedVar);
                     }
                 }
-                
             }
             
             //clauseEntry becomes inactive, removed from clauses
@@ -534,7 +533,6 @@ int randomSH(){
     // gets the vector of variables of the current block
     vector <int> temp = helperSH();
 
-    
     srand(time(NULL));
     
     // choose a random variable of the block
