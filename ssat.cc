@@ -263,13 +263,13 @@ double SOLVESSAT(const unsigned int &algorithm){
             
             result = isPureChoice(it->first);
 
+            //store the being considered variable in variable v
+            v = it->first;
+
             //if there is no pure choice variable then continue
             if (result.first == false) {
                 continue;
             }
-
-            //store the being considered variable in variable v
-            v = it->first;
             
             //found a pure choice variable, execute PVE and return computed probability, ending the above 
             // for-loop
