@@ -582,17 +582,22 @@ int maximumSH() {
  ***************************************************************************/
  int maxClause(){
 
+    //get the variables in the current block
     vector<int> activeBlock = helperSH();
 
-    unsigned int maxSize = 0;
-    unsigned int maxClause = 0;
-    unsigned int maxVar = 1;
+    unsigned int maxSize = 0;       //size of the largest clause found so far
+    unsigned int maxClause = 0;     //index of the largest clause
+    unsigned int maxVar = 1;        //the variable associated with the largest clause
 
+     
+    //for each variable in the active block
     for (unsigned int i = 0; i < activeBlock.size(); i++) {
 
+        //find the largest clause the current variable is a part of
         unsigned int tempClauseEntry = largestClause(activeBlock[i]);
         unsigned int tempSize = (clauses[tempClauseEntry]).size();
 
+        //if the clause is larger than the currently saved one, update
         if (maxSize < tempSize) {
             maxSize = tempSize;
             maxClause = tempClauseEntry;
@@ -616,18 +621,21 @@ int maximumSH() {
  ***************************************************************************/
  int minClause() {
 
+    //get the variables in the current block
     vector<int> activeBlock = helperSH();
 
-    unsigned int minSize = INT_MAX;
-    unsigned int minClause = INT_MAX;
-    unsigned int minVar = 1;
+    unsigned int minSize = INT_MAX;         //smallest clause size found so far
+    unsigned int minClause = INT_MAX;       //index of smallest clause
+    unsigned int minVar = 1;                //the variable associated with the current smallest clause
 
+    //for each variable in the active block
     for (unsigned int i = 0; i < activeBlock.size(); i++) {
 
+        //find the smallest clause the current variable is a part of
         unsigned int tempClauseEntry = smallestClause(activeBlock[i]);
-
         unsigned int tempSize = (clauses[tempClauseEntry]).size();
 
+        //if the clause is smaller than the current saved one, update
         if (minSize > tempSize) {
             minSize = tempSize;
             minClause = tempClauseEntry;
@@ -756,7 +764,9 @@ int largestClause(int variable) {
     unsigned int maxSize = 0;
     unsigned int maxClause = 0;
 
+    //for every clause the variable is a part of, check if it is larger than the current saved max clause and update if so
     for (map<int, int>::iterator it = variables[variable].clauseMembers.begin(); it != variables[variable].clauseMembers.end(); it++) {
+        
         if (maxSize < clauses[it->first].size()) {
             maxSize = clauses[it->first].size();
             maxClause = it->first;
@@ -778,7 +788,9 @@ int smallestClause(int variable) {
     unsigned int minSize = INT_MAX;
     unsigned int minClause = INT_MAX;
 
+    //for every clause the variable is a part of, check if it is smaller than the current saved min clause and update if so
     for (map<int, int>::iterator it = variables[variable].clauseMembers.begin(); it != variables[variable].clauseMembers.end(); it++) {
+        
         if (minSize > clauses[it->first].size()) {
             minSize = clauses[it->first].size();
             minClause = it->first;
